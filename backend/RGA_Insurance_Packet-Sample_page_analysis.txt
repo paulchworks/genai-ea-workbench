@@ -1,0 +1,238 @@
+Analysis generated: 2025-01-17T16:19:13.000666
+Source file: RGA_Insurance_Packet-Sample.pdf
+Batch size: 1
+
+=== Page 1 ===
+Health Details:
+- Male
+- Non-tobacco user
+- Rated for lymphoma
+- Rated as "Unacceptable Risk"
+- No Flat Extras noted
+
+Policy Details:
+- Date: 01-26-2021
+- Total Protection Amount: $750,000
+- Policy Type: TRMB0
+- Total Reinsurance Amount: $750,000
+- Total for All Companies: $1,500,000
+- Reinsured Benefits: None
+
+No information provided about:
+- Detailed medical history/conditions
+- Medications/lab results
+- Occupation
+- Credit score
+- Driving history
+- Hobbies
+
+=== Page 2 ===
+Key information visible:
+- Form type: Individual Life Insurance Application (Page 1 of 7)
+- Document sections: Insured, Applicant, and Owner information fields
+- Only non-redacted identifier: Taxpayer ID 639-05-8901 (in Applicant section)
+- Gender selections: "Male" checked in multiple sections
+- Most other fields are either blank or redacted
+
+No specific health details, occupation information, credit scores, driving history, or hobbies are present on this page as it appears to be focused on basic identification and contact information.
+
+=== Page 3 ===
+Key details found:
+- Premium Payment: Prepaid Premium Payment with initial premium of $37.63
+- Gender: Male checked
+- Temporary Life Insurance Agreement: "Yes" checked
+- Policy Information: 
+  * 1 Application Supplement being submitted
+  * Selected "Do not activate the Automatic Premium Loan provision"
+- Phone type: Home checked
+- Mobile: No checked
+
+Other form fields are either redacted or left blank. No specific health details, occupations, credit scores, driving history, or hobbies are mentioned on this page of the application.
+
+=== Page 4 ===
+BLANK
+
+=== Page 5 ===
+BLANK
+
+=== Page 6 ===
+BLANK
+
+=== Page 7 ===
+BLANK
+
+=== Page 8 ===
+BLANK
+
+=== Page 9 ===
+BLANK
+
+=== Page 10 ===
+Health/Medical: No medical information present
+
+Occupational Details:
+- Form appears to be for a Financial Representative certification
+- Sales-related role indicated by sections on sales presentation methods and client sources
+
+Financial/Sales Information:
+- Contract Interest: 100%
+- Sales presentation methods include options for:
+  * BPA
+  * Insurance & Savings
+  * Executive Benefits
+  * Various other presentation types
+
+Client Relationship Status:
+- "Yes" checked for:
+  * Face-to-face meetings with insured/guardian
+  * Staff meetings with insured in last two years
+  * Primary person making the sale
+
+Education/Background: Form includes options for education levels from High School to Graduate Degree (none specifically marked)
+
+Driving History: No information present
+
+Hobbies: No information present
+
+Credit Score: No information present
+
+=== Page 11 ===
+BLANK
+
+=== Page 12 ===
+BLANK
+
+=== Page 13 ===
+Health Details:
+- Has regular healthcare provider: Yes
+- Last provider visit: Physical & Labs - all normal
+- No change in healthcare providers in last 2 years
+- Height: 6 ft 3 in
+- Weight: 231 lbs
+- No weight loss >10 lbs in last 6 months
+- Pregnancy status: N/A
+
+The page shows this is part 1 of a medical questionnaire with basic health information. The insured has agreed to the Declaration of Truth statement. All responses indicate stable health status with regular medical care and normal recent physical exam results.
+
+=== Page 14 ===
+Health Details:
+- Juvenile Health: Not applicable (marked "NO" for age 5 or under)
+- No developmental delays or growth concerns noted
+- Cardiovascular History (past 10 years):
+  * Several conditions appear to be marked:
+    - Aneurysm
+    - Angina
+    - Cardiac bypass surgery
+    - Cardiac stent(s)
+    - Chest Pain/Tightness/Discomfort
+    - Coronary artery disease
+  * However, "NONE" is also marked, creating an inconsistency
+  * No details provided in the details section below
+
+Services/Therapy:
+- Speech/Language therapy indicated (no date provided)
+
+Note: There appears to be some inconsistency in the marking of cardiovascular conditions, as both specific conditions and "NONE" are checked.
+
+=== Page 15 ===
+Health Details:
+- Cancer/Growths: Positive for Lymphoma
+- Respiratory: None reported
+- Neurology: None reported
+- Psychiatric/Mental Health: None reported
+- Gastrointestinal (GI): None reported
+
+Specific Condition Details:
+- Lymphoma diagnosed in 02/2019
+- Treatment: Chemotherapy
+- Status: Resolved in May 2019
+
+All other sections (Respiratory, Neurological, Psychiatric, and Gastrointestinal) marked as "NONE" with no reported conditions.
+
+No information provided about:
+- Occupations
+- Credit scores
+- Driving history
+- Hobbies
+
+=== Page 16 ===
+Health Details:
+- Endocrinology/Glandular: None reported
+- Hematology/Immunology: None reported
+- Rheumatology: None reported
+- Genitourinary: None reported
+- Dermatology: None reported
+
+Form date: 01/22/2021
+
+No specific conditions, medications, or treatments are listed as all categories are marked "NONE"
+
+No other relevant data (occupation, credit, driving, hobbies) appears on this page.
+
+=== Page 17 ===
+Health Details:
+- No chronic diseases or disorders indicated (NONE checked)
+- HIV negative
+- No history of tobacco use (all tobacco products marked as "Never Used")
+- Alcohol consumption:
+  * Drinks 1-14 alcoholic beverages per week
+  * Last alcohol consumption date: 01/2021
+  * No medical advice to reduce/discontinue alcohol use
+
+The page shows a relatively healthy profile with:
+- No major medical conditions
+- No tobacco use
+- Moderate alcohol consumption
+- No HIV risk factors
+
+=== Page 18 ===
+Health Details:
+- Medical marijuana use:
+  * Frequency: Weekly (3 times during chemotherapy)
+  * Last use: 02/2020
+  * Medical reason: Lymphoma treatment with side effects
+  * Administration: Smoking and edible forms
+  * Not formally prescribed
+- No history of alcohol/drug treatment
+- No illegal drug use
+- No narcotic/controlled substance use
+- No other substance abuse issues reported
+
+Document date: 01/22/2021
+
+=== Page 19 ===
+Health Details:
+- Diagnostic tests performed (checked YES):
+  * EKG (08/2019) - Result: Normal, done to make sure ok to start chemotherapy
+  * X-ray - Chest (02/2019)
+  * CT of Chest (02/2019) - Found enlarged lymph node, lymphoma-related
+  * Also showed enlarged lymph nodes 1 inch+ (lymphoma related)
+
+Medications:
+- Currently taking Claritin (reason: seasonal allergies)
+
+Occupational History:
+- No reduced work hours in past 6 months due to sickness/injury (NO checked)
+- No work schedule modifications needed
+
+Medical Consultations:
+- No consultations with other medical providers in past 5 years
+- No hospitalizations/clinic visits
+- No surgeries
+- No uncompleted recommended procedures
+
+Additional Notes:
+- Reference made to "pg. 30" for contact information
+
+=== Page 20 ===
+Health Details:
+- No disability/medical payments received in past 5 years
+- Family History:
+  * Father (67): High blood pressure (diagnosed at 64)
+  * Mother (63): No known medical conditions
+  * Sister (35): No known medical conditions
+  * Brother (18): No conditions listed
+- No family history of major conditions (heart disease, stroke, diabetes, cancer, kidney disease, mental illness, dementia, Huntington's disease, neurofibromatosis, or aneurysms)
+
+No other relevant data about occupation, credit scores, driving history, or hobbies found on this page.
+
