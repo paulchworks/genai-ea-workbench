@@ -13,6 +13,65 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Increase consistency in information extraction
 - Allow underwriters to focus on decision-making rather than information gathering
 
+## Deployment
+
+The project is designed to be deployed on AWS using the AWS Cloud Development Kit (CDK) for a seamless deployment of both backend and frontend services along with all necessary AWS infrastructure.
+
+### Prerequisites for Deployment
+
+- **Docker**: Required for containerization
+  - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your OS
+
+- **AWS CLI**: Install and configure with your credentials:
+  ```bash
+  aws configure  # You'll need access key, secret key, default region (us-east-1 recommended)
+  ```
+
+- **Node.js and npm**: Ensure you have Node.js (version 14 or later) and npm installed
+  ```bash
+  node --version  # Should be >= 14
+  npm --version
+  ```
+
+- **AWS CDK**: Install globally:
+  ```bash
+  npm install -g aws-cdk
+  cdk --version  # Verify installation
+  ```
+
+- **CDK Dependencies**: From the `cdk` directory, install necessary packages:
+  ```bash
+  cd cdk
+  npm install
+  ```
+
+### Bootstrap and Deploy the CDK Stack
+
+1. If necessary, bootstrap your AWS environment (required once per account/region):
+```bash
+cd cdk
+cdk bootstrap aws://ACCOUNT-NUMBER/REGION  # Replace with your AWS account number and region
+```
+
+3. Deploy the stack:
+```bash
+cdk deploy
+```
+
+This process will:
+- Create all necessary AWS resources (Fargate clusters, Load Balancers, DynamoDB tables, S3 buckets, etc.)
+- Create ECR repositories and push Docker images
+- Deploy backend services and the frontend application
+- Output API endpoints and frontend URLs once complete
+
+**Note**: Ensure your AWS account has appropriate permissions to create and manage these resources, including:
+- ECR repository creation and push permissions
+- ECS/Fargate cluster management
+- DynamoDB table creation
+- S3 bucket management
+- IAM role and policy management
+- CloudFormation full access
+
 ## Key Features
 
 ### Intelligent Document Processing
@@ -28,7 +87,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 ### Interactive Document Analysis
 - Natural language chat interface to query document contents
 - Ability to ask follow-up questions about specific details
-- Quick navigation to relevant document sections
+- Quick navigation to relevant document sections using markdown links
 - Contextual understanding of underwriting terminology
 
 ### Insights Generation
@@ -36,7 +95,6 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Summary of key findings
 - Highlighting of areas requiring additional review
 - Cross-reference of information across different sections
-
 
 ## Technical Overview
 
@@ -57,17 +115,17 @@ The project consists of three main components:
   - Interactive chat interface for querying document contents
   - Organized display of underwriting insights
 
-- **Infrastructure**: A CDK (Cloud Development Kit) setup for deploying necessary cloud resources on AWS.
+- **Infrastructure**: Deployed via AWS CDK, which automates the provisioning and management of all cloud resources.
 
 ## Development Setup
 
-For local development, follow these steps to set up and run the application:
+For local development, follow these steps:
 
 ### Backend
-1. Ensure you have Python 3.8+ installed
+1. Ensure you have Python 3.8+ installed.
 2. Install required Python packages:
    ```bash
-   pip install -r requirements.txt
+   pip install -r backend/requirements.txt
    ```
 3. Install system dependencies:
    - `pdf2image` requires [Poppler](https://poppler.freedesktop.org/):
@@ -80,9 +138,9 @@ For local development, follow these steps to set up and run the application:
      ```
 4. Start the Flask server:
    ```bash
-   python app.py
+   python backend/app.py
    ```
-   The server will run in debug mode on [http://localhost:5000](http://localhost:5000)
+   The server will run in debug mode at [http://localhost:5000](http://localhost:5000).
 
 ### Frontend
 1. Navigate to the frontend directory and install dependencies:
@@ -94,33 +152,7 @@ For local development, follow these steps to set up and run the application:
    ```bash
    npm run dev
    ```
-3. Open [http://localhost:5174](http://localhost:5174) (or the port shown in the terminal) in your browser
-
-## Deployment
-
-This project is designed to be deployed on AWS using the AWS Cloud Development Kit (CDK).
-
-### Prerequisites
-1. Install the AWS CLI and configure with your credentials:
-   ```bash
-   aws configure
-   ```
-2. Install CDK dependencies:
-   ```bash
-   cd cdk
-   npm install
-   ```
-
-### Deploy to AWS
-1. From the `cdk` directory, deploy the stack:
-   ```bash
-   cdk deploy
-   ```
-   This will:
-   - Set up necessary AWS resources (Fargate, Load Balancer, DynamoDB, S3, etc.)
-   - Deploy the backend services
-   - Deploy the frontend application
-   - Output the API endpoint and frontend URL
+3. Open [http://localhost:5174](http://localhost:5174) (or the port shown in your terminal) in your browser.
 
 ## API Usage
 
@@ -129,7 +161,7 @@ The backend provides an API endpoint for document analysis:
 **POST** `/analyze`
 - Request: multipart/form-data
   - `file`: PDF document to analyze
-  - `batch_size` (optional, default: 3): Number of pages to process in each batch
+  - `batch_size` (optional, default: 3): Number of pages to process per batch
   - `page_limit` (optional): Maximum number of pages to analyze
 
 Example:
@@ -138,31 +170,31 @@ curl -F "file=@/path/to/document.pdf" -F "batch_size=3" -F "page_limit=10" http:
 ```
 
 Response includes:
-- `page_analysis`: Detailed analysis of each page
+- `page_analysis`: Detailed per-page analysis
 - `underwriter_analysis`: Aggregated insights and key findings
 
 ## Project Structure
 
 ```
 .
-├── app.py               # Entry point for the Flask backend server
-├── requirements.txt     # Python dependencies
 ├── backend/
-│   └── extract.py       # Contains document analysis and underwriting logic
-├── frontend/            # React frontend application built with Vite
-├── cdk/                 # AWS CDK project for cloud deployment
-└── README.md            # Project documentation (this file)
+│   ├── app.py               # Flask backend server entry point
+│   ├── requirements.txt     # Python dependencies
+│   └── extract.py           # Document analysis and underwriting logic
+├── frontend/                # React frontend built with Vite
+├── cdk/                     # AWS CDK project for cloud deployment
+└── README.md                # Project documentation (this file)
 ```
 
 ## Dependencies and Technologies
 
 - **Backend**: Python, Flask, pdf2image, boto3, AWS Bedrock (Anthropic Claude models)
 - **Frontend**: React, Vite, JavaScript/TypeScript
-- **Infrastructure**: AWS Cloud Development Kit (CDK)
+- **Infrastructure**: AWS Cloud Development Kit (CDK), AWS CLI, Node.js, npm
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request if you have suggestions or improvements.
+Contributions are welcome! Please open an issue or submit a pull request with your suggestions or improvements.
 
 ## License
 
