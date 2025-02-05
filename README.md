@@ -94,7 +94,7 @@ For local development, follow these steps to set up and run the application:
    ```bash
    npm run dev
    ```
-3. Open [http://localhost:3000](http://localhost:3000) (or the port shown in the terminal) in your browser
+3. Open [http://localhost:5174](http://localhost:5174) (or the port shown in the terminal) in your browser
 
 ## Deployment
 
