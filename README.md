@@ -117,7 +117,7 @@ This project is designed to be deployed on AWS using the AWS Cloud Development K
    cdk deploy
    ```
    This will:
-   - Set up necessary AWS resources (Lambda, API Gateway, S3, etc.)
+   - Set up necessary AWS resources (Fargate, Load Balancer, DynamoDB, S3, etc.)
    - Deploy the backend services
    - Deploy the frontend application
    - Output the API endpoint and frontend URL
