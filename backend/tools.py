@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from knowledge_base import query_combined_knowledge_base
+# from knowledge_base import query_combined_knowledge_base
 
 def calculate_bmi(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -45,7 +45,8 @@ def handle_knowledge_base_query(input_data: Dict[str, Any], conversation_history
         print("input_data", input_data)
         print("conversation_history", conversation_history)
         question = input_data["question"]
-        return query_combined_knowledge_base(question)
+        return "This is a placeholder response. The actual implementation of the knowledge base query is not yet available."
+        # return query_combined_knowledge_base(question)
     except (KeyError, ValueError, TypeError) as e:
         return {"error": f"Invalid input: {str(e)}"}
 

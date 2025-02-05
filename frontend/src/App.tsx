@@ -20,7 +20,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const login = async (password: string) => {
     try {
-      const response = await fetch('/login', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ function UploadPage() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/analyze-stream', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze-stream`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

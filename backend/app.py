@@ -12,6 +12,10 @@ from datetime import datetime, timedelta
 from tools import calculate_bmi, handle_knowledge_base_query, TOOL_DEFINITIONS
 from functools import wraps
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -42,15 +46,6 @@ logger.info(f"AUTH_PASSWORD: {AUTH_PASSWORD}")
 # Add authentication configuration
 AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD', 'demo123')  # Default password for development
 
-# def require_auth(f):
-#     @wraps(f)
-#     def decorated(*args, **kwargs):
-#         auth_header = request.headers.get('Authorization')
-#         logger.debug(f"auth_header: {auth_header}")
-#         if not auth_header or auth_header != f'Bearer {AUTH_PASSWORD}':
-#             return jsonify({'error': 'Unauthorized'}), 401
-#         return f(*args, **kwargs)
-#     return decorated
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -409,48 +404,7 @@ def chat(job_id):
 
             response = BEDROCK_CLIENT.converse(**kwargs)
             logger.info(json.dumps(response, indent=2))
-            #
-#   "ResponseMetadata": {
-#     "RequestId": "f610dad8-bc3c-42b9-b71d-73a69f9ed3d0",
-#     "HTTPStatusCode": 200,
-#     "HTTPHeaders": {
-#       "date": "Wed, 22 Jan 2025 18:23:04 GMT",
-#       "content-type": "application/json",
-#       "content-length": "324",
-#       "connection": "keep-alive",
-#       "x-amzn-requestid": "f610dad8-bc3c-42b9-b71d-73a69f9ed3d0"
-#     },
-#     "RetryAttempts": 0
-#   },
-#   "output": {
-#     "message": {
-#       "role": "assistant",
-#       "content": [
-#         {
-#           "toolUse": {
-#             "toolUseId": "tooluse_Ftde3QOSS02hFjtwS25xnQ",
-#             "name": "calculate_juvenile_bmi",
-#             "input": {
-#               "height": 60,
-#               "weight": 130,
-#               "age": 10,
-#               "sex": "male"
-#             }
-#           }
-#         }
-#       ]
-#     }
-#   },
-#   "stopReason": "tool_use",
-#   "usage": {
-#     "inputTokens": 12913,
-#     "outputTokens": 92,
-#     "totalTokens": 13005
-#   },
-#   "metrics": {
-#     "latencyMs": 3552
-#   }
-# }
+            
             # Check if tool use is requested
             chat_response = ""
             if response["stopReason"] == 'tool_use':
@@ -468,11 +422,11 @@ def chat(job_id):
                             bmi  = calculate_bmi(tool['input'])
                             logger.info(f"result from calculate_bmi {bmi}")
                             chat_response += bmi
-                        elif tool['name'] == "combined_knowledge_base":
-                            logger.info("calling tool combined_knowledge_base")
-                            kb_response = handle_knowledge_base_query(tool['input'], bedrock_messages)
-                            logger.info(f"result from combined_knowledge_base {kb_response}")
-                            chat_response += kb_response
+                        # elif tool['name'] == "combined_knowledge_base":
+                        #     logger.info("calling tool combined_knowledge_base")
+                        #     kb_response = handle_knowledge_base_query(tool['input'], bedrock_messages)
+                        #     logger.info(f"result from combined_knowledge_base {kb_response}")
+                        #     chat_response += kb_response
                         
 
    

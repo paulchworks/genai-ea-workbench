@@ -146,7 +146,7 @@ export function JobPage({ jobId }: JobPageProps) {
         return;
       }
 
-      const response = await fetch(`/pdf/${jobId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/pdf/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -178,7 +178,7 @@ export function JobPage({ jobId }: JobPageProps) {
         return false;
       }
 
-      const response = await fetch(`/analysis/${jobId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analysis/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -229,7 +229,7 @@ export function JobPage({ jobId }: JobPageProps) {
       return;
     }
 
-    const eventSource = new EventSource(`/analyze-progress/${jobId}?token=${token}`)
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/analyze-progress/${jobId}?token=${token}`)
     setStreamConnected(true)
 
     // Clear any existing errors when we start a new connection
@@ -513,7 +513,7 @@ export function JobPage({ jobId }: JobPageProps) {
       // Filter out the initial greeting when sending to backend
       const messagesToSend = updatedMessages.filter(msg => msg.id !== '1')
       
-      const response = await fetch(`/chat/${jobId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/${jobId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

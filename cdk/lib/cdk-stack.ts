@@ -102,7 +102,7 @@ export class CdkStack extends cdk.Stack {
           AWS_REGION: this.region,
           ANALYSIS_TABLE_NAME: analysisTable.tableName,
           UPLOAD_BUCKET_NAME: uploadBucket.bucketName,
-          AUTH_PASSWORD: 'rgademo2025',
+          AUTH_PASSWORD: 'awsdemo2025',
         },
         taskRole,
       },
