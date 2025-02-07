@@ -13,6 +13,34 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Increase consistency in information extraction
 - Allow underwriters to focus on decision-making rather than information gathering
 
+## Key Features
+
+### Document Analysis
+- Page-by-page analysis of insurance applications and supporting documents
+- Efficient batch processing of multiple pages at a time to optimize performance and resource usage
+- Intelligent extraction of key data points from each page, enabling comprehensive analysis without token limitations
+- Automatic classification of document sections with useful bookmarks
+
+![dashboard screenshot](screen1.png)
+
+### Underwriter Analysis
+- AI-driven analysis of the document to detect discrepancies and extract underwriting-relevant insights
+- Evaluation of medical history, medications, and lifestyle factors to identify risk indicators
+- Automated identification of potential risk factors and summary of key findings
+- Highlighting of areas requiring additional review and cross-referencing of information across sections
+- Optional integration with customer's proprietary underwriting manuals for specialized insights
+
+![underwriter analysis screenshot](screen2.png)
+
+### Chat Interface
+- Natural language chat interface for querying document contents
+- Context-aware responses leveraging the extracted document insights
+- Persistent chat history ensuring coherent conversation flow
+- Quick navigation to relevant document sections using markdown links
+- Contextual understanding of underwriting terminology for detailed inquiries
+
+![underwriter analysis screenshot](screen3.png)
+
 ## Deployment
 
 The project is designed to be deployed on AWS using the AWS Cloud Development Kit (CDK) for a seamless deployment of both backend and frontend services along with all necessary AWS infrastructure.
@@ -72,48 +100,30 @@ This process will:
 - IAM role and policy management
 - CloudFormation full access
 
-## Key Features
 
-### Intelligent Document Processing
-- Page-by-page analysis of insurance applications and supporting documents
-- Automatic extraction of key underwriting factors such as:
-  - Medical history and conditions
-  - Medications and treatments
-  - Lifestyle factors
-  - Family history
-  - Occupational details
-  - Financial information
-
-### Interactive Document Analysis
-- Natural language chat interface to query document contents
-- Ability to ask follow-up questions about specific details
-- Quick navigation to relevant document sections using markdown links
-- Contextual understanding of underwriting terminology
-
-### Insights Generation
-- Automated identification of potential risk factors
-- Summary of key findings
-- Highlighting of areas requiring additional review
-- Cross-reference of information across different sections
 
 ## Technical Overview
 
 The project consists of three main components:
 
 - **Backend**: A Flask-based API written in Python which:
-  - Accepts PDF uploads via the `/analyze` endpoint.
-  - Converts PDF pages to images using `pdf2image`.
+  - Accepts PDF uploads via the `/analyze` endpoint
+  - Converts PDF pages to images using `pdf2image`
+  - Processes documents in efficient batches to extract key information
+  - Maintains a structured representation of document contents for quick retrieval
   - Leverages Amazon Bedrock and Anthropic's Claude models for:
     - Detailed page-by-page analysis
     - Extraction of underwriting-relevant data
     - Generation of aggregated insights
-    - Interactive Q&A capabilities about document contents
+    - Interactive Q&A capabilities using extracted document context
+    - Optional knowledge base integration for specialized queries
 
 - **Frontend**: A React application (powered by Vite) that provides:
-  - Document upload interface
+  - Document upload interface with progress tracking
   - Visual representation of extracted information
   - Interactive chat interface for querying document contents
   - Organized display of underwriting insights
+  - Seamless document reprocessing capabilities
 
 - **Infrastructure**: Deployed via AWS CDK, which automates the provisioning and management of all cloud resources.
 
@@ -172,31 +182,3 @@ curl -F "file=@/path/to/document.pdf" -F "batch_size=3" -F "page_limit=10" http:
 Response includes:
 - `page_analysis`: Detailed per-page analysis
 - `underwriter_analysis`: Aggregated insights and key findings
-
-## Project Structure
-
-```
-.
-├── backend/
-│   ├── app.py               # Flask backend server entry point
-│   ├── requirements.txt     # Python dependencies
-│   └── extract.py           # Document analysis and underwriting logic
-├── frontend/                # React frontend built with Vite
-├── cdk/                     # AWS CDK project for cloud deployment
-└── README.md                # Project documentation (this file)
-```
-
-## Dependencies and Technologies
-
-- **Backend**: Python, Flask, pdf2image, boto3, AWS Bedrock (Anthropic Claude models)
-- **Frontend**: React, Vite, JavaScript/TypeScript
-- **Infrastructure**: AWS Cloud Development Kit (CDK), AWS CLI, Node.js, npm
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request with your suggestions or improvements.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
