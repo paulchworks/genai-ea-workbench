@@ -2,7 +2,20 @@
 
 A demonstration project showcasing the power of Amazon Bedrock and advanced AI models like Claude 3.5 Sonnet in transforming life insurance underwriting workflows. This solution leverages intelligent document processing to streamline the underwriting process by automatically extracting, analyzing, and making accessible critical information from insurance applications and related documents.
 
-## Business Purpose
+## Table of Contents
+- [Business Purpose](#business-purpose)
+- [Key Features](#key-features)
+  - [Document Analysis](#document-analysis)
+  - [Underwriter Analysis](#underwriter-analysis)
+  - [Chat Interface](#chat-interface)
+- [Deployment](#deployment)
+  - [Prerequisites for Deployment](#prerequisites-for-deployment)
+  - [Bootstrap and Deploy the CDK Stack](#bootstrap-and-deploy-the-cdk-stack)
+- [Technical Overview](#technical-overview)
+  - [Development Setup](#development-setup)
+  - [API Usage](#api-usage)
+
+# Business Purpose
 
 This demo addresses a key challenge in life insurance underwriting: the time-consuming process of reviewing lengthy applications and related documentation. By combining Amazon Bedrock's capabilities with advanced AI models, the solution helps underwriters:
 
@@ -13,9 +26,9 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Increase consistency in information extraction
 - Allow underwriters to focus on decision-making rather than information gathering
 
-## Key Features
+# Key Features
 
-### Document Analysis
+## Document Analysis
 - Page-by-page analysis of insurance applications and supporting documents
 - Efficient batch processing of multiple pages at a time to optimize performance and resource usage
 - Intelligent extraction of key data points from each page, enabling comprehensive analysis without token limitations
@@ -23,7 +36,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 
 ![dashboard screenshot](screen1.png)
 
-### Underwriter Analysis
+## Underwriter Analysis
 - AI-driven analysis of the document to detect discrepancies and extract underwriting-relevant insights
 - Evaluation of medical history, medications, and lifestyle factors to identify risk indicators
 - Automated identification of potential risk factors and summary of key findings
@@ -32,7 +45,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 
 ![underwriter analysis screenshot](screen2.png)
 
-### Chat Interface
+## Chat Interface
 - Natural language chat interface for querying document contents
 - Context-aware responses leveraging the extracted document insights
 - Persistent chat history ensuring coherent conversation flow
@@ -41,11 +54,11 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 
 ![underwriter analysis screenshot](screen3.png)
 
-## Deployment
+# Deployment
 
 The project is designed to be deployed on AWS using the AWS Cloud Development Kit (CDK) for a seamless deployment of both backend and frontend services along with all necessary AWS infrastructure.
 
-### Prerequisites for Deployment
+## Prerequisites for Deployment
 
 - **Docker**: Required for containerization
   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your OS
@@ -73,7 +86,7 @@ The project is designed to be deployed on AWS using the AWS Cloud Development Ki
   npm install
   ```
 
-### Bootstrap and Deploy the CDK Stack
+## Bootstrap and Deploy the CDK Stack
 
 1. If necessary, bootstrap your AWS environment (required once per account/region):
 ```bash
@@ -102,7 +115,7 @@ This process will:
 
 
 
-## Technical Overview
+# Technical Overview
 
 The project consists of three main components:
 
