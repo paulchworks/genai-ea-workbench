@@ -4,12 +4,31 @@ import random
 import boto3
 import json
 import argparse
+import logging
 from datetime import datetime
 from botocore.config import Config
 from io import BytesIO
 from botocore.exceptions import ClientError
 from pdf2image import convert_from_path
 import math
+from prompts import get_page_analysis_prompt  # Import the prompts function
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    # Create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Add formatter to ch
+    ch.setFormatter(formatter)
+    
+    # Add ch to logger
+    logger.addHandler(ch)
 
 GOOD_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 FAST_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
@@ -18,7 +37,18 @@ BATCH_SIZE = 3
 config = Config(retries={'max_attempts': 10, 'mode': 'adaptive'})
 BEDROCK_CLIENT = boto3.client("bedrock-runtime", REGION, config=config)
 
-def analyze_document(pdf_path, batch_size=BATCH_SIZE, page_limit=None, progress_callback=None):
+def analyze_document(pdf_path, batch_size=BATCH_SIZE, page_limit=None, progress_callback=None, insurance_type='life'):
+    """
+    Analyze a document, extracting page-by-page information
+    
+    Parameters:
+        pdf_path: Path to the PDF file
+        batch_size: Number of pages to analyze at once
+        page_limit: Maximum number of pages to analyze
+        progress_callback: Function to call with progress updates
+        insurance_type: Type of insurance ('life' or 'property_casualty')
+    """
+    logger.info(f"Starting analyze_document with insurance_type: {insurance_type}")
     pages = convert_from_path(pdf_path, dpi=200, fmt='JPEG')
     
     # Apply page limit if specified
@@ -46,45 +76,36 @@ def analyze_document(pdf_path, batch_size=BATCH_SIZE, page_limit=None, progress_
         
         batch = image_data_list[page_idx:page_idx + batch_size]
         batch_page_nums = range(page_idx + 1, page_idx + 1 + len(batch))
+        
+        # Get the appropriate prompt based on insurance type
+        prompt_base = get_page_analysis_prompt(insurance_type)
+        
+        # Format the prompt with page numbers and add the output example
+        formatted_prompt = f"""You are an underwriter analyzing pages {list(batch_page_nums)} from a pdf containing an insurance application.
+{prompt_base}
+
+Output example:
+<output page="1">
+    <page_type>Pharmacy Report-Continued</page_type>
+    <page_content>
+        - Date Submitted: 12/29/2020)
+        - Gender: Male
+        - Risk Score: 2.650
+        - Medications:
+            - Prescription by Oncologist (#380)
+            - Anti-Convulsant with multiple uses (#354)
+        - Multiple prescription benefit periods from 01/01/2003 through 12/31/2039
+    </page_content>
+</output>
+Here come the images:"""
+        logger.info(f"Prompt: {formatted_prompt}")
 
         user_content = [
             {
-                "text": (
-                    f"""You are an underwriter analyzing pages {list(batch_page_nums)} from a pdf containing an individual life insurance application.
-                    Your job is to extract all relevant data from each page related to life insurance underwriting, such as:
-                    - Health details (medical history, conditions, medications, lab results)
-                    - Occupation information
-                    - Credit scores
-                    - Driving history
-                    - Hobbies
-                    - Discrepancies (contradictory or unclear information)
-
-                    Guidelines:
-                    - For each page, think about the page in <thinking>...</thinking> tags. 
-                    - Then Output your the page details in <output page="X">...</output> tags. 
-                    - Within the <output>, start with a description of the <page_type>, such as "Pharmacy Report" or "Driving History" or "Occupation History"
-                       - If it's a continuation of a previous page, add "-Continued," I
-                    - Then include all information relevant to life insurance underwriting in <page_content>...</page_content> tags. Dates are very important.  
-                    - Do not mention absent information, as each page will pertain to only specific information. 
-                    - Some pages may have redactions. That is ok. Just ignore them. 
-
-                    Output example:
-                    <output page="1">
-                        <page_type>Pharmacy Report-Continued</page_type>
-                        <page_content>
-                            - Date Submitted: 12/29/2020)
-                            - Gender: Male
-                            - Risk Score: 2.650
-                            - Medications:
-                                - Prescription by Oncologist (#380)
-                                - Anti-Convulsant with multiple uses (#354)
-                            - Multiple prescription benefit periods from 01/01/2003 through 12/31/2039
-                        </page_content>
-                    </output>
-                    Here come the images:"""
-                )
+                "text": formatted_prompt
             }
         ]
+        
         for pg_num, img_bytes in zip(batch_page_nums, batch):
             user_content.append({"text": f"Page {pg_num}:"})
             user_content.append({
@@ -222,40 +243,61 @@ def get_current_focus(thinking_text):
         print(f"Error getting focus summary: {e}")
         return None
 
-def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None):
+def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None, insurance_type='life'):
+    logger.info(f"PHASE 2: Inside underwriter_analysis. Using insurance_type: {insurance_type}")
     """
     Takes a dict of {page_num: summary_text} from Phase 1
     and returns or yields the final JSON analysis from Phase 2.
+    
+    Parameters:
+        page_summaries: Dict of page summaries from Phase 1
+        batch_size: Number of pages to analyze at once
+        progress_callback: Function to call with progress updates
+        insurance_type: Type of insurance ('life' or 'property_casualty')
     """
     summary_items = sorted(page_summaries.items(), key=lambda x: int(x[0]))
     messages = []
     final_output = None
 
+    # Set role and output format based on insurance type
+    if insurance_type == 'property_casualty':
+        analysis_role_guidelines_prompt = """You are a senior property and casualty insurance underwriter. I will show you page-level summaries from an underwriting document. Your job: combine them into an overall risk assessment. Identify specific risks, property concerns, liability exposures, and discrepancies."""
+        output_json_format = """
+        {
+            "RISK_ASSESSMENT": "Detailed assessment of property and liability risks with page references...",
+            "DISCREPANCIES": "List of any conflicting information found with page references",
+            "PROPERTY_ASSESSMENT": "Detailed evaluation of the property characteristics, condition, and risk factors with page references",
+            "FINAL_RECOMMENDATION": "Clear recommendation based on all data. Do not make explicit accept/decline decisions, but rather observe risks and recommend next steps."
+        }
+        """
+    else:  # default to life insurance
+        analysis_role_guidelines_prompt = """You are a senior life insurance underwriter. I will show you page-level summaries from an underwriting document. Your job: combine them into an overall risk assessment. Identify specific risks, callouts, and discrepancies."""
+        output_json_format = """
+        {
+            "RISK_ASSESSMENT": "Detailed assessment with page references...",
+            "DISCREPANCIES": "List of any conflicting information found with page references (pay special attention to medication prescriptions, which can indicate undisclosed conditions)",
+            "MEDICAL_TIMELINE": "Timeline of major medical events ordered by date with page references. Only include major medical events, not minor ones.",
+            "FINAL_RECOMMENDATION": "Clear recommendation based on all data. Do not make recommendations on accept or decline, but rather observe risks and recommend next steps."
+        }
+        """
 
-    analysis_role_guidelines_prompt = """You are a senior life insurance underwriter. I will show you page-level summaries from an underwriting document. Your job: combine them into an overall risk 
-        assessment. Identify specific risks, callouts, and discrepancies. """
     initial_prompt = (
         f"""
         {analysis_role_guidelines_prompt}
 
         You must:
         1) Keep a chain-of-thought in <thinking>...</thinking> tags. Write 10-15 paragraphs summarizing your thoughts. 
-        2) Produce interim and final results in <output> tags containing VALID JSON like this exact format:
+        2) Produce interim and final results in <o> tags containing VALID JSON like this exact format:
         3) Cite the page number(s) where info was found. Keep updating and refining your assessment each time you receive new page summaries.
-        <output>
-        {{
-            "RISK_ASSESSMENT": "Detailed assessment with page references...",
-            "DISCREPANCIES": "List of any conflicting information found with page references (pay special attention to medication prescriptions, which can indicate undisclosed conditions)",
-            "MEDICAL_TIMELINE": "Timeline of major medical events ordered by date with page references. Only include major medical events, not minor ones.",
-            "FINAL_RECOMMENDATION": "Clear recommendation based on all data. Do not make recommendations on accept or decline, but rather observe risks and recommend next steps."
-        }}
-        </output>
+        <o>
+        {output_json_format}
+        </o>
 
         Important:
         - Use EXACTLY the aforementioned key names
         - Make sure your JSON is properly formatted with quotes
         - Include page numbers in your analysis
-        - Put the entire JSON inside <output> tags
+        - Put the entire JSON inside <o> tags
         Guidelines:
         - Always include the page number(s) in your analysis. Use exactly this format "(pg 1)", "(pg 1, pg 7)"
         - Your general rule of thumb should be to add or refine information to the JSON, but not remove information.
@@ -265,7 +307,7 @@ def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None):
         - Generally you should aim to describe the page in a way that is useful for an underwriter to make a decision, but not make judgement calls (except for the FINAL_RECOMMENDATION)
         
         Begin by acknowledging this prompt in your chain-of-thought, then produce 
-        an initial empty JSON structure within <output> tags."""
+        an initial empty JSON structure within <o> tags."""
     )
 
     messages.append({"role": "user", "content": [{"text": initial_prompt}]})
@@ -293,14 +335,20 @@ def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None):
 
         chunk_text += (
             "\nPlease refine your overall analysis. Keep the chain-of-thought in <thinking> tags. "
-            "Update the JSON inside <output> so it has the keys "
-            "[RISK_ASSESSMENT, DISCREPANCIES, MEDICAL_TIMELINE, FINAL_RECOMMENDATION]. "
-            "Reference page numbers where relevant."
+            "Update the JSON inside <o> so it has the keys "
         )
+        
+        # Use different keys based on insurance type
+        if insurance_type == 'property_casualty':
+            chunk_text += "[RISK_ASSESSMENT, DISCREPANCIES, PROPERTY_ASSESSMENT, FINAL_RECOMMENDATION]. "
+        else:  # default to life
+            chunk_text += "[RISK_ASSESSMENT, DISCREPANCIES, MEDICAL_TIMELINE, FINAL_RECOMMENDATION]. "
+            
+        chunk_text += "Reference page numbers where relevant."
 
         messages.append({"role": "user", "content": [{"text": chunk_text}]})
         overall_analysis = continue_bedrock_conversation(messages)
-        final_output = parse_output_json(overall_analysis)
+        final_output = parse_output_json(overall_analysis, insurance_type)
 
         # Extract thinking from latest analysis for focus update
         # Only do thinking/focus updates if we're not on the final batch
@@ -317,31 +365,47 @@ def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None):
         # Return the final dict in non-streamed scenarios
         return final_output
 
-def parse_output_json(full_text):
+def parse_output_json(full_text, insurance_type='life'):
     """
-    Looks for <output>...</output> blocks in the final text,
+    Looks for <o>...</o> blocks in the final text,
     extracts them, and tries to parse JSON from inside.
-    If there are multiple <output> blocks, we take the last one as final.
+    If there are multiple <o> blocks, we take the last one as final.
+    
+    Parameters:
+        full_text: The text to parse
+        insurance_type: Type of insurance ('life' or 'property_casualty')
     """
-    pattern = re.compile(r"<output>(.*?)</output>", re.DOTALL | re.IGNORECASE)
+    pattern = re.compile(r"<o>(.*?)</o>", re.DOTALL | re.IGNORECASE)
     matches = pattern.findall(full_text)
     if not matches:
-        print("WARNING: No <output> block found in final text.")
+        print("WARNING: No <o> block found in final text.")
         print("Full text received:", full_text)
-        return {
-            "RISK_ASSESSMENT": "Error: No output block found",
-            "DISCREPANCIES": "Error: No output block found",
-            "MEDICAL_TIMELINE": "Error: No output block found",
-            "FINAL_RECOMMENDATION": "Error: No output block found"
-        }
+        if insurance_type == 'property_casualty':
+            return {
+                "RISK_ASSESSMENT": "Error: No output block found",
+                "DISCREPANCIES": "Error: No output block found",
+                "PROPERTY_ASSESSMENT": "Error: No output block found",
+                "FINAL_RECOMMENDATION": "Error: No output block found"
+            }
+        else:  # default to life
+            return {
+                "RISK_ASSESSMENT": "Error: No output block found",
+                "DISCREPANCIES": "Error: No output block found",
+                "MEDICAL_TIMELINE": "Error: No output block found",
+                "FINAL_RECOMMENDATION": "Error: No output block found"
+            }
 
     # Take the last match as the final output
     json_block = matches[-1].strip()
     
     try:
         data = json.loads(json_block)
-        # Verify all required keys are present
-        required_keys = ["RISK_ASSESSMENT", "DISCREPANCIES", "MEDICAL_TIMELINE", "FINAL_RECOMMENDATION"]
+        # Verify all required keys are present based on insurance type
+        if insurance_type == 'property_casualty':
+            required_keys = ["RISK_ASSESSMENT", "DISCREPANCIES", "PROPERTY_ASSESSMENT", "FINAL_RECOMMENDATION"]
+        else:  # default to life
+            required_keys = ["RISK_ASSESSMENT", "DISCREPANCIES", "MEDICAL_TIMELINE", "FINAL_RECOMMENDATION"]
+            
         missing_keys = [key for key in required_keys if key not in data]
         if missing_keys:
             print(f"WARNING: Missing required keys in JSON: {missing_keys}")
@@ -349,16 +413,24 @@ def parse_output_json(full_text):
                 data[key] = f"Error: Missing {key}"
         return data
     except json.JSONDecodeError as e:
-        print("Failed to parse JSON from <output>:")
+        print("Failed to parse JSON from <o>:")
         print("JSON block:", json_block)
         print("Error:", str(e))
         # Return error structure instead of empty dict
-        return {
-            "RISK_ASSESSMENT": f"Error parsing JSON: {str(e)}",
-            "DISCREPANCIES": "Error: JSON parse failed",
-            "MEDICAL_TIMELINE": "Error: JSON parse failed",
-            "FINAL_RECOMMENDATION": "Error: JSON parse failed"
-        }
+        if insurance_type == 'property_casualty':
+            return {
+                "RISK_ASSESSMENT": f"Error parsing JSON: {str(e)}",
+                "DISCREPANCIES": "Error: JSON parse failed",
+                "PROPERTY_ASSESSMENT": "Error: JSON parse failed",
+                "FINAL_RECOMMENDATION": "Error: JSON parse failed"
+            }
+        else:  # default to life
+            return {
+                "RISK_ASSESSMENT": f"Error parsing JSON: {str(e)}",
+                "DISCREPANCIES": "Error: JSON parse failed",
+                "MEDICAL_TIMELINE": "Error: JSON parse failed",
+                "FINAL_RECOMMENDATION": "Error: JSON parse failed"
+            }
 
 def continue_bedrock_conversation(messages):
     """
@@ -414,6 +486,12 @@ def parse_page_output(text: str) -> tuple[dict, set]:
     pattern = re.compile(r'<output\s+page="(\d+)">(.*?)</output>', re.DOTALL | re.IGNORECASE)
     matches = list(pattern.finditer(text))
     print(f"Found {len(matches)} output blocks in text")
+    
+    # Fallback to </o> tag for backward compatibility
+    if not matches:
+        pattern = re.compile(r'<output\s+page="(\d+)">(.*?)</o>', re.DOTALL | re.IGNORECASE)
+        matches = list(pattern.finditer(text))
+        print(f"Found {len(matches)} output blocks using legacy tag in text")
     
     results = {}
     found_pages = set()

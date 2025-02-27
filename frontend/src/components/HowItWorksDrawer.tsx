@@ -1,32 +1,7 @@
 import React, { useEffect } from 'react';
+import '../styles/HowItWorksDrawer.css'
 
-// CSS styling can be adjusted in your stylesheet (e.g., App.css)
-// .how-it-works-drawer {
-//   position: fixed;
-//   top: 0;
-//   right: 0;
-//   width: 400px;
-//   height: 100%;
-//   background: #fff;
-//   box-shadow: -2px 0 5px rgba(0,0,0,0.3);
-//   overflow-y: auto;
-//   transition: transform 0.3s ease-in-out;
-//   z-index: 1000;
-// }
-// .drawer-close {
-//   position: absolute;
-//   top: 10px;
-//   right: 10px;
-// }
-// .drawer-content {
-//   padding: 20px;
-// }
-// .prompt-examples pre {
-//   background: #f1f5f9;
-//   padding: 10px;
-//   border-radius: 4px;
-//   overflow-x: auto;
-// }
+
 
 interface HowItWorksDrawerProps {
   onClose: () => void;

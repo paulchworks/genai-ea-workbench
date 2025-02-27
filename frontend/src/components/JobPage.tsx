@@ -3,7 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import Split from 'react-split'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import '../App.css'
+import '../styles/JobPage.css'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../contexts/AuthContext'
 import { HowItWorksDrawer } from './HowItWorksDrawer'
@@ -63,7 +63,8 @@ import {
   faRoad,
   faShieldAlt,
   faGavel,
-  faList
+  faList,
+  faClipboardCheck
 } from '@fortawesome/free-solid-svg-icons'
 
 // Configure PDF.js worker
@@ -100,6 +101,7 @@ interface AnalysisData {
   underwriter_analysis: Record<string, string>;
   status: string;
   pdf_url: string | null;
+  insurance_type?: string;
 }
 
 interface AnalysisResponse extends Omit<AnalysisData, 'page_analysis' | 'underwriter_analysis' | 'pdf_url'> {
@@ -371,6 +373,7 @@ export function JobPage({ jobId }: JobPageProps) {
   const [streamConnected, setStreamConnected] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [insuranceType, setInsuranceType] = useState<'life' | 'property_casualty'>('life')
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -385,6 +388,64 @@ export function JobPage({ jobId }: JobPageProps) {
   const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false)
+  const [pdfWidth, setPdfWidth] = useState<number | undefined>(undefined)
+
+  // Calculate PDF width based on container size
+  useEffect(() => {
+    const calculatePdfWidth = () => {
+      const containerWidth = isAnalysisPanelOpen 
+        ? window.innerWidth * 0.45 // When split view is active
+        : window.innerWidth * 0.9; // When PDF is expanded
+      
+      // Set a maximum width to prevent the PDF from being too large
+      const maxWidth = 1000;
+      const width = Math.min(containerWidth, maxWidth);
+      
+      setPdfWidth(width);
+    };
+
+    // Calculate initially
+    calculatePdfWidth();
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculatePdfWidth);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', calculatePdfWidth);
+    };
+  }, [isAnalysisPanelOpen]);
+
+  // Update initial greeting when insurance type is available
+  useEffect(() => {
+    if (analysisData?.insurance_type) {
+      const insuranceType = analysisData.insurance_type;
+      console.log("INSURANCE TYPE detected in JobPage:", insuranceType);
+      let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
+      
+      if (insuranceType === 'property_casualty') {
+        greeting = "Hello! I'm your Property & Casualty insurance underwriting assistant. I've analyzed this document and can help with questions about property details, risk factors, and coverage considerations.";
+        console.log("Using P&C GREETING");
+      } else {
+        greeting = "Hello! I'm your Life Insurance underwriting assistant. I've analyzed this document and can help with questions about medical history, risk factors, and policy considerations.";
+        console.log("Using LIFE GREETING");
+      }
+      
+      setMessages([{
+        id: '1',
+        text: greeting,
+        sender: 'ai',
+        timestamp: new Date()
+      }]);
+    }
+  }, [analysisData?.insurance_type]);
+
+  // Update insurance type when analysis data is loaded
+  useEffect(() => {
+    if (analysisData?.insurance_type) {
+      setInsuranceType(analysisData.insurance_type as 'life' | 'property_casualty');
+    }
+  }, [analysisData]);
 
   // Function to handle unauthorized responses
   const handleUnauthorized = () => {
@@ -458,7 +519,8 @@ export function JobPage({ jobId }: JobPageProps) {
         page_analysis: data.page_analysis || {},
         underwriter_analysis: data.underwriter_analysis || {},
         status: data.status,
-        pdf_url: data.pdf_url || null
+        pdf_url: data.pdf_url || null,
+        insurance_type: data.insurance_type
       };
       setAnalysisData(analysisData);
       setCurrentStep(3); // Analysis is complete
@@ -503,7 +565,15 @@ export function JobPage({ jobId }: JobPageProps) {
         } else if (eventData.type === 'phase1_complete') {
           setCurrentStep(2);
           setCurrentPhase('Underwriter Analysis');
-          setPhaseDetails('Analyzing document contents...');
+          
+          // Use different message based on insurance type
+          const insuranceType = analysisData?.insurance_type || 'life';
+          if (insuranceType === 'property_casualty') {
+            setPhaseDetails('Analyzing property risk factors and liability exposures...');
+          } else {
+            setPhaseDetails('Analyzing medical history and mortality risk factors...');
+          }
+          
         } else if (eventData.type === 'complete') {
           setCurrentStep(3);
           setCurrentPhase('Complete');
@@ -594,92 +664,98 @@ export function JobPage({ jobId }: JobPageProps) {
         return null
     }
 
-    const groups: Record<string, {
-      title: string,
-      startPage: number,
-      pages: Array<{
-        pageNum: number,
-        pageType: string,
-        content: string
-      }>
-    }> = {}
-    
-    Object.entries(analysis).forEach(([pageNum, pageData]) => {
+    // Convert object entries to array
+    const pages = Object.entries(analysis).map(([pageNum, pageData]) => {
       const { page_type, content } = pageData as PageData
-      // Extract base document type (before the dash if it exists)
-      const baseType = page_type.split('-')[0].trim()
-      
-      if (!groups[baseType]) {
-        groups[baseType] = {
-          title: baseType,
-          startPage: parseInt(pageNum),
-          pages: [{
-            pageNum: parseInt(pageNum),
-            pageType: page_type,
-            content
-          }]
-        }
-      } else {
-        groups[baseType].pages.push({
-          pageNum: parseInt(pageNum),
-          pageType: page_type,
-          content
-        })
+      return {
+        pageNum: parseInt(pageNum),
+        pageType: page_type,
+        content
       }
     })
-
-    const toggleGroup = (title: string) => {
-      setExpandedGroups(current => {
-        const newGroups = new Set(current)
-        if (newGroups.has(title)) {
-          newGroups.delete(title)
-        } else {
-          newGroups.add(title)
-        }
-        return newGroups
-      })
-    }
+    
+    // Group pages by document type (text before any dash)
+    const groups: Record<string, typeof pages> = {}
+    
+    pages.forEach(page => {
+      // Get the document type (text before the dash)
+      const dashIndex = page.pageType.indexOf('-')
+      const docType = dashIndex > 0 
+        ? page.pageType.substring(0, dashIndex).trim() 
+        : page.pageType.trim()
+      
+      // Create the group if it doesn't exist
+      if (!groups[docType]) {
+        groups[docType] = []
+      }
+      
+      // Add the page to its group
+      groups[docType].push(page)
+    })
 
     return (
       <div className="grouped-analysis">
-        {Object.values(groups).sort((a, b) => a.startPage - b.startPage).map((group) => (
-          <div key={group.title} className="analysis-group">
-            <button 
-              className={`group-header ${expandedGroups.has(group.title) ? 'expanded' : ''}`}
-              onClick={() => {
-                toggleGroup(group.title)
-                setCurrentPage(group.startPage)
-              }}
+        {Object.entries(groups).map(([groupTitle, groupPages]) => {
+          // Sort pages by page number to ensure we get the first page of the section
+          const sortedPages = [...groupPages].sort((a, b) => a.pageNum - b.pageNum);
+          const firstPageInGroup = sortedPages[0]?.pageNum;
+          
+          return (
+            <div 
+              key={groupTitle}
+              className={`analysis-group`}
             >
-              <div className="group-title">
-                <FontAwesomeIcon icon={getDocumentIcon(group.title)} />
-                {group.title}
-              </div>
-            </button>
-            
-            {expandedGroups.has(group.title) && (
-              <div className="group-content">
-                {group.pages.map(({ pageNum, pageType, content }) => (
-                  <div 
-                    key={pageNum}
-                    className={`page-section ${pageNum === currentPage ? 'active' : ''}`}
-                    onClick={() => setCurrentPage(pageNum)}
-                  >
-                    <h3>
-                      <FontAwesomeIcon icon={getDocumentIcon(pageType)} /> 
-                      Page {pageNum} - {pageType}
-                    </h3>
-                    <div className="page-content">
-                      {content.split('\n').map((line, i) => (
-                        <p key={i}>{line}</p>
-                      ))}
+              <button 
+                className={`group-header ${expandedGroups.has(groupTitle) ? 'expanded' : ''}`}
+                onClick={(e) => {
+                  // Toggle the expanded state
+                  const updatedGroups = new Set(expandedGroups);
+                  if (updatedGroups.has(groupTitle)) {
+                    updatedGroups.delete(groupTitle);
+                  } else {
+                    updatedGroups.add(groupTitle);
+                  }
+                  setExpandedGroups(updatedGroups);
+                  
+                  // Navigate to the first page of the group
+                  if (firstPageInGroup) {
+                    setCurrentPage(firstPageInGroup);
+                  }
+                }}
+              >
+                <div className="group-title">
+                  <FontAwesomeIcon icon={getDocumentIcon(groupTitle)} />
+                  {groupTitle} ({groupPages.length} {groupPages.length === 1 ? 'page' : 'pages'})
+                </div>
+                <FontAwesomeIcon 
+                  icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight} 
+                />
+              </button>
+              
+              {expandedGroups.has(groupTitle) && (
+                <div className="group-content">
+                  {groupPages.map(page => (
+                    <div 
+                      key={page.pageNum}
+                      className={`page-card ${currentPage === page.pageNum ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page.pageNum)}
+                    >
+                      <div className="page-header">
+                        <div className="page-number">Page {page.pageNum}</div>
+                        <div className="page-type">{page.pageType}</div>
+                      </div>
+                      <div className="page-content">
+                        {page.content.split('\n').map((line: string, i: number) => (
+                          line.trim() !== '' && <div key={i} className="content-line">{line}</div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     )
   }
@@ -687,19 +763,35 @@ export function JobPage({ jobId }: JobPageProps) {
   const renderUnderwriterAnalysis = () => {
     if (!analysisData?.underwriter_analysis) return null;
     
-    // Define the order of sections with appropriate icons
-    const sectionConfig = [
-      { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
-      { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle },
-      { key: 'MEDICAL_TIMELINE', icon: faHistory },
-      { key: 'DISCREPANCIES', icon: faClipboardList }
-    ];
+    console.log("renderUnderwriterAnalysis - insurance type:", analysisData?.insurance_type);
+    
+    // Define the order of sections with appropriate icons based on insurance type
+    const sectionConfig = (analysisData.insurance_type === 'property_casualty') 
+      ? [
+          { key: 'RISK_ASSESSMENT', icon: faClipboardCheck },
+          { key: 'DISCREPANCIES', icon: faClipboardList },
+          { key: 'PROPERTY_ASSESSMENT', icon: faHome },
+          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+        ]
+      : [
+          { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
+          { key: 'DISCREPANCIES', icon: faClipboardList },
+          { key: 'MEDICAL_TIMELINE', icon: faHistory },
+          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+        ];
+    
+    console.log("Using section config:", sectionConfig.map(s => s.key).join(', '));
     
     return (
       <div className="underwriter-analysis">
         {sectionConfig.map(({key, icon}) => {
           const content = analysisData.underwriter_analysis[key];
-          if (!content) return null;
+          if (!content) {
+            console.log(`No content found for section: ${key}`);
+            return null;
+          }
+          
+          console.log(`Rendering section: ${key} with content length: ${content.length}`);
           
           return (
             <div key={key} className="analysis-section">
@@ -848,10 +940,29 @@ export function JobPage({ jobId }: JobPageProps) {
           <button 
             className="how-it-works-button"
             onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
-            style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 1100 }}
           >
             <FontAwesomeIcon icon={faInfoCircle} /> How It Works
           </button>
+
+          {/* Job info section with insurance type */}
+          <div className="job-header">
+            <h1>{analysisData?.filename}</h1>
+            <div className="header-controls">
+              {analysisData && (
+                <div className="insurance-type-badge">
+                  {insuranceType === 'property_casualty' ? (
+                    <span className="badge p-and-c">
+                      <FontAwesomeIcon icon={faHome} /> Property & Casualty
+                    </span>
+                  ) : (
+                    <span className="badge life">
+                      <FontAwesomeIcon icon={faBriefcaseMedical} /> Life Insurance
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
           {(currentStep < 3 || currentPhase !== 'Complete') && (
             <>
@@ -928,43 +1039,46 @@ export function JobPage({ jobId }: JobPageProps) {
                         loading={<div>Loading PDF...</div>}
                         error={<div>Error loading PDF.</div>}
                       >
-                        <Page 
-                          pageNumber={currentPage} 
-                          renderTextLayer={false}
-                          renderAnnotationLayer={false}
-                          scale={scale}
-                        />
-                      </Document>
-                      <div className="pdf-controls">
-                        <button 
-                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                          disabled={currentPage <= 1}
-                        >
-                          <FontAwesomeIcon icon={faChevronLeft} /> Previous
-                        </button>
-                        <span>{`Page ${currentPage} of ${numPages}`}</span>
-                        <button 
-                          onClick={() => setCurrentPage(p => Math.min(numPages || p, p + 1))}
-                          disabled={currentPage >= (numPages || 1)}
-                        >
-                          Next <FontAwesomeIcon icon={faChevronRight} />
-                        </button>
-                        <div className="zoom-controls">
-                          <button 
-                            onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-                            disabled={scale <= 0.5}
-                          >
-                            <FontAwesomeIcon icon={faSearchMinus} />
-                          </button>
-                          <span className="zoom-level">{`${Math.round(scale * 100)}%`}</span>
-                          <button 
-                            onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
-                            disabled={scale >= 2.0}
-                          >
-                            <FontAwesomeIcon icon={faSearchPlus} />
-                          </button>
+                        <div className="pdf-container">
+                          <div className="pdf-controls">
+                            <button 
+                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                              disabled={currentPage <= 1}
+                            >
+                              <FontAwesomeIcon icon={faChevronLeft} /> Previous
+                            </button>
+                            <span>{`Page ${currentPage} of ${numPages}`}</span>
+                            <button 
+                              onClick={() => setCurrentPage(p => Math.min(numPages || p, p + 1))}
+                              disabled={currentPage >= (numPages || 1)}
+                            >
+                              Next <FontAwesomeIcon icon={faChevronRight} />
+                            </button>
+                            <div className="zoom-controls">
+                              <button 
+                                onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
+                                disabled={scale <= 0.5}
+                              >
+                                <FontAwesomeIcon icon={faSearchMinus} />
+                              </button>
+                              <span className="zoom-level">{`${Math.round(scale * 100)}%`}</span>
+                              <button 
+                                onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
+                                disabled={scale >= 2.0}
+                              >
+                                <FontAwesomeIcon icon={faSearchPlus} />
+                              </button>
+                            </div>
+                          </div>
+                          <Page 
+                            pageNumber={currentPage} 
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                            scale={scale}
+                            width={pdfWidth}
+                          />
                         </div>
-                      </div>
+                      </Document>
                     </>
                   )}
                 </div>
@@ -987,7 +1101,13 @@ export function JobPage({ jobId }: JobPageProps) {
                       className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
                       onClick={() => setActiveTab('chat')}
                     >
-                      <FontAwesomeIcon icon={faComments} /> Chat Assistant
+                      <FontAwesomeIcon icon={faComments} /> 
+                      Chat Assistant
+                      {analysisData?.insurance_type && (
+                        <span className={`chat-type-indicator ${analysisData.insurance_type === 'property_casualty' ? 'p-and-c' : 'life'}`}>
+                          {analysisData.insurance_type === 'property_casualty' ? 'P&C' : 'Life'}
+                        </span>
+                      )}
                     </button>
                   </div>
 

@@ -142,6 +142,10 @@ def start_analysis():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
+        # Get insurance type from request form
+        insurance_type = request.form.get('insuranceType', 'life')
+        logger.info(f"INSURANCE TYPE FROM REQUEST: {insurance_type}")
+
         # Upload to S3
         logger.info("Uploading to S3")
         s3.upload_file(
@@ -156,9 +160,11 @@ def start_analysis():
             'filepath': filepath,
             'batch_size': request.form.get('batch_size', default=3, type=int),
             'page_limit': request.form.get('page_limit', default=None, type=int),
+            'insurance_type': insurance_type,
             'status': 'pending'
         }
         logger.info(f"analyses: {analyses}")
+        logger.info(f"Insurance type for analysis {analysis_id}: {analyses[analysis_id].get('insurance_type', 'DEFAULT-LIFE')}")
 
 
         return jsonify({'analysisId': analysis_id})
@@ -176,6 +182,7 @@ def stream_progress(analysis_id):
         return jsonify({'error': 'Analysis not found'}), 404
 
     analysis = analyses[analysis_id]
+    logger.info(f"Analysis insurance_type: {analysis.get('insurance_type', 'NOT FOUND - DEFAULT LIFE')}")
     
     def generate():
         logger.info(f"generate() analysis: {analysis}")
@@ -200,11 +207,14 @@ def stream_progress(analysis_id):
             # -----------------
             # Phase 1: Analyze PDF
             # -----------------
+            insurance_type = analysis.get('insurance_type', 'life')  # Get insurance type with default
+            logger.info(f"PHASE 1: Using insurance_type: {insurance_type}")
             for progress_event in analyze_document(
                 analysis['filepath'],
                 analysis['batch_size'],
                 analysis['page_limit'],
-                progress_callback
+                progress_callback,
+                insurance_type=insurance_type
             ):
                 yield progress_event
 
@@ -214,7 +224,9 @@ def stream_progress(analysis_id):
             # -----------------
             # Phase 2: Underwriter Analysis
             # -----------------
-            for progress_event in underwriter_analysis(page_analysis, 100, progress_callback):
+            insurance_type = analysis.get('insurance_type', 'life')  # Get insurance type with default
+            logger.info(f"PHASE 2: Using insurance_type: {insurance_type}")
+            for progress_event in underwriter_analysis(page_analysis, 100, progress_callback, insurance_type=insurance_type):
                 if isinstance(progress_event, str) and progress_event.startswith('data: '):
                     data = json.loads(progress_event.replace('data: ', ''))
                     if data['type'] == 'complete':
@@ -224,6 +236,7 @@ def stream_progress(analysis_id):
             # Store results in DynamoDB
             if final_underwriter_analysis:
                 try:
+                    logger.info(f"Storing results with insurance_type: {insurance_type}")
                     dynamodb.put_item(
                         TableName=ANALYSIS_TABLE_NAME,
                         Item={
@@ -232,10 +245,11 @@ def stream_progress(analysis_id):
                             'filename': {'S': os.path.basename(analysis['filepath'])},
                             'page_analysis': {'S': json.dumps(page_analysis)},
                             'underwriter_analysis': {'S': json.dumps(final_underwriter_analysis)},
+                            'insurance_type': {'S': insurance_type},
                             'status': {'S': 'completed'}
                         }
                     )
-                    logger.info(f"Stored analysis results for job {analysis_id} in DynamoDB")
+                    logger.info(f"Stored analysis results for job {analysis_id} in DynamoDB with insurance_type: {insurance_type}")
                 except Exception as e:
                     logger.error(f"Error storing results in DynamoDB: {str(e)}")
                     # Don't fail the response if storage fails
@@ -274,6 +288,10 @@ def get_analysis(job_id):
             
         item = response['Item']
         
+        # Check if insurance_type exists in the item
+        insurance_type = item.get('insurance_type', {'S': 'life'})['S']
+        logger.info(f"Retrieved analysis for job {job_id} with insurance_type: {insurance_type}")
+        
         # Generate presigned URL for PDF
         try:
             presigned_url = s3.generate_presigned_url(
@@ -295,6 +313,7 @@ def get_analysis(job_id):
             'page_analysis': json.loads(item['page_analysis']['S']),
             'underwriter_analysis': json.loads(item['underwriter_analysis']['S']),
             'status': item['status']['S'],
+            'insurance_type': insurance_type,
             'pdf_url': presigned_url
         })
         
