@@ -231,16 +231,17 @@ def underwriter_analysis(page_summaries, batch_size=10, progress_callback=None):
     messages = []
     final_output = None
 
+
+    analysis_role_guidelines_prompt = """You are a senior life insurance underwriter. I will show you page-level summaries from an underwriting document. Your job: combine them into an overall risk 
+        assessment. Identify specific risks, callouts, and discrepancies. """
     initial_prompt = (
-        f"""You are a senior life insurance underwriter. I will show you page-level summaries in groups of {batch_size} at a time
-        from an underwriting document. Your job: combine them into an overall risk 
-        assessment. Identify specific risks, callouts, and discrepancies. Cite the 
-        page number(s) where info was found. Keep updating and refining your assessment each time 
-        you receive new page summaries.
+        f"""
+        {analysis_role_guidelines_prompt}
 
         You must:
         1) Keep a chain-of-thought in <thinking>...</thinking> tags. Write 10-15 paragraphs summarizing your thoughts. 
         2) Produce interim and final results in <output> tags containing VALID JSON like this exact format:
+        3) Cite the page number(s) where info was found. Keep updating and refining your assessment each time you receive new page summaries.
         <output>
         {{
             "RISK_ASSESSMENT": "Detailed assessment with page references...",

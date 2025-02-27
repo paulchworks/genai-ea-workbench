@@ -6,6 +6,65 @@ import remarkGfm from 'remark-gfm'
 import '../App.css'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../contexts/AuthContext'
+import { HowItWorksDrawer } from './HowItWorksDrawer'
+// FontAwesome imports
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { 
+  faFileAlt, 
+  faFileContract, 
+  faComments, 
+  faChevronRight, 
+  faChevronLeft, 
+  faExpandAlt, 
+  faCompressAlt, 
+  faSearchPlus, 
+  faSearchMinus,
+  faInfoCircle,
+  faFileMedical,
+  faFileInvoiceDollar,
+  faIdCard,
+  faClipboardList,
+  faUpload,
+  faFileImage,
+  faCog,
+  faDatabase,
+  faCheckCircle,
+  faUserMd,
+  faPills,
+  faFlask,
+  faHeartbeat,
+  faVial,
+  faLungs,
+  faProcedures,
+  faXRay,
+  faStethoscope,
+  faNotesMedical,
+  faMicroscope,
+  faHospital,
+  faAllergies,
+  faTooth,
+  faEye,
+  faBriefcaseMedical,
+  faHistory,
+  // P&C insurance related icons
+  faHome,
+  faCar,
+  faBuilding,
+  faUmbrella,
+  faWater,
+  faFire,
+  faBalanceScale,
+  faExclamationTriangle,
+  faTruck,
+  faHardHat,
+  faIndustry,
+  faCloudShowersHeavy,
+  faWind,
+  faRoad,
+  faShieldAlt,
+  faGavel,
+  faList
+} from '@fortawesome/free-solid-svg-icons'
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
@@ -100,6 +159,202 @@ const PageReference = ({ pageNum, text }: { pageNum: string, text: string }) => 
 const PageContext = createContext<[number, (page: number) => void]>([1, () => {}])
 const NumPagesContext = createContext<[number | null, (pages: number | null) => void]>([null, () => {}])
 
+// First, add a type for the tab options
+type TabType = 'grouped' | 'underwriter' | 'chat';
+
+// Add this function before the JobPage component
+const getDocumentIcon = (documentType: string) => {
+  // Match for medical types
+  if (/medic(al|ation)|(health|disease)/i.test(documentType)) {
+    return faFileMedical;
+  }
+  
+  // Match for medical history
+  if (/history|anamnesis/i.test(documentType)) {
+    return faHistory;
+  }
+  
+  // Match for pharmacy or medication
+  if (/pharmac(y|eutical)|medication|drug|prescription/i.test(documentType)) {
+    return faPills;
+  }
+  
+  // Match for laboratory or clinical tests
+  if (/lab(oratory)?|clinical|test|specimen/i.test(documentType)) {
+    return faFlask;
+  }
+  
+  // Match for doctor/physician
+  if (/physician|doctor|practitioner|clinician|md\b/i.test(documentType)) {
+    return faUserMd;
+  }
+  
+  // Match for examination/paramedical
+  if (/exam(ination)?|assessment|paramedical/i.test(documentType)) {
+    return faStethoscope;
+  }
+  
+  // Match for hospital/clinic
+  if (/hospital|clinic|center|facility|institution/i.test(documentType)) {
+    return faHospital;
+  }
+  
+  // Match for X-Ray/imaging
+  if (/x-ray|imaging|scan|radiolog(y|ical)|mri|ct scan/i.test(documentType)) {
+    return faXRay;
+  }
+  
+  // Match for surgical/procedure
+  if (/surg(ery|ical)|procedure|operation/i.test(documentType)) {
+    return faProcedures;
+  }
+  
+  // Match for cardiology
+  if (/cardio|heart|cardiac|pulse|ekg|ecg/i.test(documentType)) {
+    return faHeartbeat;
+  }
+  
+  // Match for pulmonary
+  if (/pulmonary|lung|respiratory|breath/i.test(documentType)) {
+    return faLungs;
+  }
+  
+  // Match for allergy
+  if (/allerg(y|ies)|immunolog(y|ical)/i.test(documentType)) {
+    return faAllergies;
+  }
+  
+  // Match for dental
+  if (/dental|dentist|tooth|teeth|oral/i.test(documentType)) {
+    return faTooth;
+  }
+  
+  // Match for ophthalmology
+  if (/eye|vision|ophthalm(ology|ologist)|optical/i.test(documentType)) {
+    return faEye;
+  }
+  
+  // Match for insurance/financial
+  if (/insurance|financial|coverage|policy|premium|underwriter/i.test(documentType)) {
+    return faFileInvoiceDollar;
+  }
+  
+  // Match for forms/questionnaires
+  if (/form|(question|survey)(naire)?|assessment/i.test(documentType)) {
+    return faClipboardList;
+  }
+  
+  // Match for detailed medical notes
+  if (/note|report|summary|record/i.test(documentType)) {
+    return faNotesMedical;
+  }
+  
+  // Match for microscopic/detailed analysis
+  if (/microscop(e|ic)|patholog(y|ical)|cytolog(y|ical)|histolog(y|ical)/i.test(documentType)) {
+    return faMicroscope;
+  }
+  
+  // Match for blood/specimen tests
+  if (/blood|hematolog(y|ical)|serum|plasma|specimen/i.test(documentType)) {
+    return faVial;
+  }
+  
+  // Match for emergency/urgent care
+  if (/emergency|urgent|trauma|ambulance|ems/i.test(documentType)) {
+    return faBriefcaseMedical;
+  }
+  
+  // Property & Casualty Insurance Documents
+  
+  // Match for home/property insurance
+  if (/home|property|dwelling|real estate|building|structure/i.test(documentType)) {
+    return faHome;
+  }
+  
+  // Match for auto insurance
+  if (/auto|car|vehicle|motorcycle|truck|collision/i.test(documentType)) {
+    return faCar;
+  }
+  
+  // Match for commercial property
+  if (/commercial|business property|office|warehouse|retail/i.test(documentType)) {
+    return faBuilding;
+  }
+  
+  // Match for umbrella/liability policies
+  if (/umbrella|liability|excess|protection/i.test(documentType)) {
+    return faUmbrella;
+  }
+  
+  // Match for flood insurance
+  if (/flood|water damage|rising water|overflow/i.test(documentType)) {
+    return faWater;
+  }
+  
+  // Match for fire insurance/protection
+  if (/fire|flame|burn|combustion|smoke/i.test(documentType)) {
+    return faFire;
+  }
+  
+  // Match for legal/liability documents
+  if (/legal|liability|lawsuit|litigation|tort/i.test(documentType)) {
+    return faBalanceScale;
+  }
+  
+  // Match for hazard/risk documents
+  if (/hazard|risk|danger|peril|warning/i.test(documentType)) {
+    return faExclamationTriangle;
+  }
+  
+  // Match for commercial auto/fleet
+  if (/fleet|commercial auto|commercial vehicle|transport/i.test(documentType)) {
+    return faTruck;
+  }
+  
+  // Match for workers' compensation
+  if (/workers comp|workers' compensation|workplace injury|occupational/i.test(documentType)) {
+    return faHardHat;
+  }
+  
+  // Match for industrial/manufacturing
+  if (/industrial|manufacturing|factory|plant|production/i.test(documentType)) {
+    return faIndustry;
+  }
+  
+  // Match for storm/weather related
+  if (/storm|hurricane|tornado|hail|weather damage/i.test(documentType)) {
+    return faCloudShowersHeavy;
+  }
+  
+  // Match for wind damage
+  if (/wind|windstorm|gust|gale/i.test(documentType)) {
+    return faWind;
+  }
+  
+  // Match for roadway/traffic incidents
+  if (/roadway|highway|traffic|intersection|accident|crash/i.test(documentType)) {
+    return faRoad;
+  }
+  
+  // Match for protection/security
+  if (/protection|security|safeguard|defense|safety/i.test(documentType)) {
+    return faShieldAlt;
+  }
+  
+  // Match for claims/legal judgments
+  if (/claim|judgment|settlement|adjudication|ruling/i.test(documentType)) {
+    return faGavel;
+  }
+  
+  // Default for contract/agreement
+  if (/contract|agreement|terms|certificate/i.test(documentType)) {
+    return faFileContract;
+  }
+  
+  // Default fallback
+  return faFileAlt;
+};
+
 export function JobPage({ jobId }: JobPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [showError, setShowError] = useState(false)
@@ -112,11 +367,10 @@ export function JobPage({ jobId }: JobPageProps) {
   const [phaseDetails, setPhaseDetails] = useState<string>('Loading...')
   const [numPages, setNumPages] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [activeTab, setActiveTab] = useState<'grouped' | 'underwriter'>('grouped')
+  const [activeTab, setActiveTab] = useState<TabType>('grouped')
   const [streamConnected, setStreamConnected] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
-  const [isChatOpen, setIsChatOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -130,6 +384,7 @@ export function JobPage({ jobId }: JobPageProps) {
   const [scale, setScale] = useState(1.0)
   const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false)
 
   // Function to handle unauthorized responses
   const handleUnauthorized = () => {
@@ -222,11 +477,11 @@ export function JobPage({ jobId }: JobPageProps) {
   }, [jobId]);
 
   // Function to establish streaming connection
-  const connectToStream = () => {
+  const connectToStream = (): EventSource | null => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
       handleUnauthorized();
-      return;
+      return null;
     }
 
     const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/analyze-progress/${jobId}?token=${token}`)
@@ -272,7 +527,7 @@ export function JobPage({ jobId }: JobPageProps) {
     };
 
     return eventSource;
-  };
+  }
 
   // Effect for initialization and cleanup
   useEffect(() => {
@@ -396,7 +651,10 @@ export function JobPage({ jobId }: JobPageProps) {
                 setCurrentPage(group.startPage)
               }}
             >
-              <span className="group-title">{group.title}</span>
+              <div className="group-title">
+                <FontAwesomeIcon icon={getDocumentIcon(group.title)} />
+                {group.title}
+              </div>
             </button>
             
             {expandedGroups.has(group.title) && (
@@ -407,7 +665,10 @@ export function JobPage({ jobId }: JobPageProps) {
                     className={`page-section ${pageNum === currentPage ? 'active' : ''}`}
                     onClick={() => setCurrentPage(pageNum)}
                   >
-                    <h3>Page {pageNum} - {pageType}</h3>
+                    <h3>
+                      <FontAwesomeIcon icon={getDocumentIcon(pageType)} /> 
+                      Page {pageNum} - {pageType}
+                    </h3>
                     <div className="page-content">
                       {content.split('\n').map((line, i) => (
                         <p key={i}>{line}</p>
@@ -424,64 +685,77 @@ export function JobPage({ jobId }: JobPageProps) {
   }
 
   const renderUnderwriterAnalysis = () => {
-    if (!analysisData?.underwriter_analysis) return null
+    if (!analysisData?.underwriter_analysis) return null;
+    
+    // Define the order of sections with appropriate icons
+    const sectionConfig = [
+      { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
+      { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle },
+      { key: 'MEDICAL_TIMELINE', icon: faHistory },
+      { key: 'DISCREPANCIES', icon: faClipboardList }
+    ];
     
     return (
       <div className="underwriter-analysis">
-        {Object.entries(analysisData.underwriter_analysis).map(([key, content]) => (
-          <div key={key} className="analysis-section">
-            <h3>{key.replace(/_/g, ' ')}</h3>
-            <div className="analysis-content">
-              {content.split('\n').map((line: string, i: number) => {
-                // Make page references clickable
-                const pageMatches = line.match(/\b(?:page|pg\.?|p\.?)\s*(\d+)\b/gi)
-                if (pageMatches) {
-                  let lastIndex = 0
-                  const parts: JSX.Element[] = []
-                  
-                  pageMatches.forEach((match: string) => {
-                    const index = line.indexOf(match, lastIndex)
-                    const pageNum = match.match(/\d+/)?.[0]
+        {sectionConfig.map(({key, icon}) => {
+          const content = analysisData.underwriter_analysis[key];
+          if (!content) return null;
+          
+          return (
+            <div key={key} className="analysis-section">
+              <h3><FontAwesomeIcon icon={icon} /> {key.replace(/_/g, ' ')}</h3>
+              <div className="analysis-content">
+                {content.split('\n').map((line: string, i: number) => {
+                  // Make page references clickable
+                  const pageMatches = line.match(/\b(?:page|pg\.?|p\.?)\s*(\d+)\b/gi)
+                  if (pageMatches) {
+                    let lastIndex = 0
+                    const parts: JSX.Element[] = []
                     
-                    // Add text before the match
-                    if (index > lastIndex) {
+                    pageMatches.forEach((match: string) => {
+                      const index = line.indexOf(match, lastIndex)
+                      const pageNum = match.match(/\d+/)?.[0]
+                      
+                      // Add text before the match
+                      if (index > lastIndex) {
+                        parts.push(
+                          <span key={`text-${i}-${index}`}>
+                            {line.slice(lastIndex, index)}
+                          </span>
+                        )
+                      }
+                      
+                      // Add the page reference
+                      if (pageNum) {
+                        parts.push(
+                          <PageReference 
+                            key={`ref-${i}-${index}`}
+                            pageNum={pageNum}
+                            text={match}
+                          />
+                        )
+                      }
+                      
+                      lastIndex = index + match.length
+                    })
+                    
+                    // Add any remaining text
+                    if (lastIndex < line.length) {
                       parts.push(
-                        <span key={`text-${i}-${index}`}>
-                          {line.slice(lastIndex, index)}
+                        <span key={`text-${i}-end`}>
+                          {line.slice(lastIndex)}
                         </span>
                       )
                     }
                     
-                    // Add the page reference
-                    if (pageNum) {
-                      parts.push(
-                        <PageReference 
-                          key={`ref-${i}-${index}`}
-                          pageNum={pageNum}
-                          text={match}
-                        />
-                      )
-                    }
-                    
-                    lastIndex = index + match.length
-                  })
-                  
-                  // Add any remaining text
-                  if (lastIndex < line.length) {
-                    parts.push(
-                      <span key={`text-${i}-end`}>
-                        {line.slice(lastIndex)}
-                      </span>
-                    )
+                    return <p key={i}>{parts}</p>
                   }
-                  
-                  return <p key={i}>{parts}</p>
-                }
-                return <p key={i}>{line}</p>
-              })}
+                  return <p key={i}>{line}</p>
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     )
   }
@@ -560,114 +834,67 @@ export function JobPage({ jobId }: JobPageProps) {
     <PageContext.Provider value={[currentPage, setCurrentPage]}>
       <NumPagesContext.Provider value={[numPages, setNumPages]}>
         <div className="container">
+          {/* Navigation buttons */}
+          <div className="page-navigation">
+            <button 
+              onClick={() => navigate('/')} 
+              className="nav-button"
+            >
+              <FontAwesomeIcon icon={faFileMedical} /> Upload New
+            </button>
+          </div>
+          
+          {/* How It Works Button */}
           <button 
-            className="chat-toggle"
-            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="how-it-works-button"
+            onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
+            style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 1100 }}
           >
-            {isChatOpen ? '✕ Close Chat' : '💬 Open Chat'}
+            <FontAwesomeIcon icon={faInfoCircle} /> How It Works
           </button>
 
-          <div className={`chat-drawer ${isChatOpen ? 'open' : ''}`}>
-            <div className="chat-header">
-              <h2>Document Assistant</h2>
-              <button 
-                className="chat-close"
-                onClick={() => setIsChatOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="chat-messages">
-              {messages.map(message => (
-                <div 
-                  key={message.id} 
-                  className={`chat-message ${message.sender}`}
-                >
-                  <div className={`chat-avatar ${message.sender}`}>
-                    {message.sender === 'user' ? 'U' : 'AI'}
-                  </div>
-                  <div className="chat-bubble">
-                    {message.sender === 'user' ? (
-                      message.text
-                    ) : (
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          a: ({href, children}) => (
-                            <a 
-                              href={href} 
-                              onClick={handleLinkClick}
-                              className="page-reference"
-                            >
-                              {children}
-                            </a>
-                          ),
-                          p: ({children, ...props}) => (
-                            <p style={markdownStyles.p} {...props}>{children}</p>
-                          ),
-                          h1: ({children, ...props}) => (
-                            <h1 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h1>
-                          ),
-                          h2: ({children, ...props}) => (
-                            <h2 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h2>
-                          ),
-                          h3: ({children, ...props}) => (
-                            <h3 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h3>
-                          ),
-                          pre: ({node, ...props}) => <pre style={markdownStyles.pre} {...props} />,
-                          code: ({node, ...props}) => <code style={markdownStyles.code} {...props} />,
-                          table: ({node, ...props}) => <table style={markdownStyles.table} {...props} />,
-                          th: ({node, ...props}) => <th style={markdownStyles['th,td']} {...props} />,
-                          td: ({node, ...props}) => <td style={markdownStyles['th,td']} {...props} />,
-                          blockquote: ({node, ...props}) => <blockquote style={markdownStyles.blockquote} {...props} />,
-                        }}
-                      >
-                        {message.text}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isTyping && (
-                <div className="chat-message ai">
-                  <div className="chat-avatar ai">AI</div>
-                  <div className="chat-bubble">
-                    Typing...
-                  </div>
+          {(currentStep < 3 || currentPhase !== 'Complete') && (
+            <>
+              <h1>Analysis Progress</h1>
+              
+              {error && showError && (
+                <div className="error-message">
+                  {error}
+                  <button 
+                    onClick={() => {
+                      setError(null)
+                      setShowError(false)
+                      if (!streamConnected) connectToStream()
+                    }}
+                    className="upload-button"
+                    style={{ marginLeft: '1rem' }}
+                  >
+                    Retry Connection
+                  </button>
                 </div>
               )}
-            </div>
-
-            <div className="chat-input-container">
-              <form className="chat-input-form" onSubmit={handleSendMessage}>
-                <textarea
-                  className="chat-input"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Ask me anything about the document..."
-                  rows={1}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendMessage(e)
-                    }
-                  }}
-                />
-                <button 
-                  type="submit" 
-                  className="chat-send"
-                  disabled={!newMessage.trim() || isTyping}
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-          </div>
-
-          <h1>Analysis Progress</h1>
+              
+              <div className="progress-container">
+                <div className="progress-steps">
+                  <div className={`progress-dot ${currentStep >= 1 ? 'active' : ''}`}>
+                    {currentStep >= 1 && <FontAwesomeIcon icon={faUpload} className="progress-icon" />}
+                  </div>
+                  <div className={`progress-line ${currentStep >= 2 ? 'active' : ''}`} />
+                  <div className={`progress-dot ${currentStep >= 2 ? 'active' : ''}`}>
+                    {currentStep >= 2 && <FontAwesomeIcon icon={faCog} className="progress-icon" />}
+                  </div>
+                  <div className={`progress-line ${currentStep >= 3 ? 'active' : ''}`} />
+                  <div className={`progress-dot ${currentStep >= 3 ? 'active' : ''}`}>
+                    {currentStep >= 3 && <FontAwesomeIcon icon={faCheckCircle} className="progress-icon" />}
+                  </div>
+                </div>
+                <div className="progress-label">{currentPhase}</div>
+                <div className="progress-details">{phaseDetails}</div>
+              </div>
+            </>
+          )}
           
-          {error && showError && (
+          {error && showError && !(currentStep < 3 || currentPhase !== 'Complete') && (
             <div className="error-message">
               {error}
               <button 
@@ -684,18 +911,6 @@ export function JobPage({ jobId }: JobPageProps) {
             </div>
           )}
 
-          <div className="progress-container">
-            <div className="progress-steps">
-              <div className={`progress-dot ${currentStep >= 1 ? 'active' : ''}`} />
-              <div className={`progress-line ${currentStep >= 2 ? 'active' : ''}`} />
-              <div className={`progress-dot ${currentStep >= 2 ? 'active' : ''}`} />
-              <div className={`progress-line ${currentStep >= 3 ? 'active' : ''}`} />
-              <div className={`progress-dot ${currentStep >= 3 ? 'active' : ''}`} />
-            </div>
-            <div className="progress-label">{currentPhase}</div>
-            <div className="progress-details">{phaseDetails}</div>
-          </div>
-
           {(partialAnalysis || analysisData) && (
             <div style={{ position: 'relative' }}>
               <Split 
@@ -706,49 +921,51 @@ export function JobPage({ jobId }: JobPageProps) {
               >
                 <div className={`pdf-viewer ${!isAnalysisPanelOpen ? 'expanded' : ''}`}>
                   {pdfUrl && (
-                    <Document
-                      file={pdfUrl}
-                      onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                      loading={<div>Loading PDF...</div>}
-                      error={<div>Error loading PDF.</div>}
-                    >
-                      <Page 
-                        pageNumber={currentPage} 
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        scale={scale}
-                      />
+                    <>
+                      <Document
+                        file={pdfUrl}
+                        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                        loading={<div>Loading PDF...</div>}
+                        error={<div>Error loading PDF.</div>}
+                      >
+                        <Page 
+                          pageNumber={currentPage} 
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          scale={scale}
+                        />
+                      </Document>
                       <div className="pdf-controls">
                         <button 
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                           disabled={currentPage <= 1}
                         >
-                          Previous
+                          <FontAwesomeIcon icon={faChevronLeft} /> Previous
                         </button>
-                        <span>Page {currentPage} of {numPages}</span>
+                        <span>{`Page ${currentPage} of ${numPages}`}</span>
                         <button 
                           onClick={() => setCurrentPage(p => Math.min(numPages || p, p + 1))}
                           disabled={currentPage >= (numPages || 1)}
                         >
-                          Next
+                          Next <FontAwesomeIcon icon={faChevronRight} />
                         </button>
                         <div className="zoom-controls">
                           <button 
                             onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
                             disabled={scale <= 0.5}
                           >
-                            −
+                            <FontAwesomeIcon icon={faSearchMinus} />
                           </button>
-                          <span className="zoom-level">{Math.round(scale * 100)}%</span>
+                          <span className="zoom-level">{`${Math.round(scale * 100)}%`}</span>
                           <button 
                             onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
                             disabled={scale >= 2.0}
                           >
-                            +
+                            <FontAwesomeIcon icon={faSearchPlus} />
                           </button>
                         </div>
                       </div>
-                    </Document>
+                    </>
                   )}
                 </div>
 
@@ -758,30 +975,139 @@ export function JobPage({ jobId }: JobPageProps) {
                       className={`tab-button ${activeTab === 'grouped' ? 'active' : ''}`}
                       onClick={() => setActiveTab('grouped')}
                     >
-                      Document Analysis
+                      <FontAwesomeIcon icon={faFileAlt} /> Document Analysis
                     </button>
                     <button 
                       className={`tab-button ${activeTab === 'underwriter' ? 'active' : ''}`}
                       onClick={() => setActiveTab('underwriter')}
                     >
-                      Underwriter Analysis
+                      <FontAwesomeIcon icon={faFileContract} /> Underwriter Analysis
+                    </button>
+                    <button 
+                      className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('chat')}
+                    >
+                      <FontAwesomeIcon icon={faComments} /> Chat Assistant
                     </button>
                   </div>
 
                   <div className="tab-content">
-                    {activeTab === 'grouped' ? renderGroupedAnalysis() : renderUnderwriterAnalysis()}
+                    {((): JSX.Element | null => {
+                      switch(activeTab) {
+                        case 'grouped':
+                          return renderGroupedAnalysis();
+                        case 'underwriter':
+                          return renderUnderwriterAnalysis();
+                        case 'chat':
+                          return (
+                            <div className="chat-interface">
+                              <div className="chat-messages">
+                                {messages.map(message => (
+                                  <div 
+                                    key={message.id} 
+                                    className={`chat-message ${message.sender}`}
+                                  >
+                                    <div className={`chat-avatar ${message.sender}`}>
+                                      {message.sender === 'user' ? 'U' : 'AI'}
+                                    </div>
+                                    <div className="chat-bubble">
+                                      {message.sender === 'user' ? (
+                                        message.text
+                                      ) : (
+                                        <ReactMarkdown 
+                                          remarkPlugins={[remarkGfm]}
+                                          components={{
+                                            a: ({href, children}) => (
+                                              <a 
+                                                href={href} 
+                                                onClick={handleLinkClick}
+                                                className="page-reference"
+                                              >
+                                                {children}
+                                              </a>
+                                            ),
+                                            p: ({children, ...props}) => (
+                                              <p style={markdownStyles.p} {...props}>{children}</p>
+                                            ),
+                                            h1: ({children, ...props}) => (
+                                              <h1 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h1>
+                                            ),
+                                            h2: ({children, ...props}) => (
+                                              <h2 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h2>
+                                            ),
+                                            h3: ({children, ...props}) => (
+                                              <h3 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h3>
+                                            ),
+                                            pre: ({node, ...props}) => <pre style={markdownStyles.pre} {...props} />,
+                                            code: ({node, ...props}) => <code style={markdownStyles.code} {...props} />,
+                                            table: ({node, ...props}) => <table style={markdownStyles.table} {...props} />,
+                                            th: ({node, ...props}) => <th style={markdownStyles['th,td']} {...props} />,
+                                            td: ({node, ...props}) => <td style={markdownStyles['th,td']} {...props} />,
+                                            blockquote: ({node, ...props}) => <blockquote style={markdownStyles.blockquote} {...props} />,
+                                          }}
+                                        >
+                                          {message.text}
+                                        </ReactMarkdown>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                                {isTyping && (
+                                  <div className="chat-message ai">
+                                    <div className="chat-avatar ai">AI</div>
+                                    <div className="chat-bubble">
+                                      Typing...
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="chat-input-container">
+                                <form className="chat-input-form" onSubmit={handleSendMessage}>
+                                  <textarea
+                                    className="chat-input"
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Ask me anything about the document..."
+                                    rows={1}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleSendMessage(e)
+                                      }
+                                    }}
+                                  />
+                                  <button 
+                                    type="submit" 
+                                    className="chat-send"
+                                    disabled={!newMessage.trim() || isTyping}
+                                  >
+                                    Send
+                                  </button>
+                                </form>
+                              </div>
+                            </div>
+                          );
+                        default:
+                          return null;
+                      }
+                    })()}
                   </div>
                 </div>
               </Split>
               <button 
                 className="analysis-toggle"
                 onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
+                aria-label={isAnalysisPanelOpen ? "Hide Analysis" : "Show Analysis"}
               >
-                {isAnalysisPanelOpen ? '→' : '←'}
+                <FontAwesomeIcon icon={isAnalysisPanelOpen ? faChevronLeft : faChevronRight} />
               </button>
             </div>
           )}
         </div>
+
+        {/* How It Works Drawer */}
+        {isHowItWorksOpen && <HowItWorksDrawer onClose={() => setIsHowItWorksOpen(false)} />}
       </NumPagesContext.Provider>
     </PageContext.Provider>
   )

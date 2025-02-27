@@ -53,13 +53,19 @@ export class CdkStack extends cdk.Stack {
 
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      resources: [analysisTable.tableArn],
+      resources: [
+        analysisTable.tableArn,
+        `${analysisTable.tableArn}/index/*`
+      ],
       actions: [
         'dynamodb:PutItem',
         'dynamodb:GetItem',
         'dynamodb:UpdateItem',
         'dynamodb:DeleteItem',
         'dynamodb:Query',
+        'dynamodb:Scan',
+        'dynamodb:BatchGetItem',
+        'dynamodb:BatchWriteItem'
       ]
     }));
 
