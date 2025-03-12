@@ -2,6 +2,8 @@
 
 A demonstration project showcasing the power of Amazon Bedrock and advanced AI models like Claude 3.5 Sonnet in transforming life insurance underwriting workflows. This solution leverages intelligent document processing to streamline the underwriting process by automatically extracting, analyzing, and making accessible critical information from insurance applications and related documents.
 
+For a comprehensive guide on demonstrating this solution, including business value propositions, demo walkthroughs, and addressing common questions, please see our [Sales Field Guide](https://quip-amazon.com/QOblAkihQhCL/GenAI-Underwriting-Workbench-Field-Guide).
+
 ## Table of Contents
 - [Business Purpose](#business-purpose)
 - [Key Features](#key-features)
@@ -62,6 +64,7 @@ The project is designed to be deployed on AWS using the AWS Cloud Development Ki
 
 - **Docker**: Required for containerization
   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your OS
+  - Verify the installation by running `docker run hello-world`
 
 - **AWS CLI**: Install and configure with your credentials:
   ```bash
@@ -85,6 +88,12 @@ The project is designed to be deployed on AWS using the AWS Cloud Development Ki
   cd cdk
   npm install
   ```
+
+## Clone the repository and navigate to the project directory
+```bash
+git clone https://gitlab.aws.dev/anhwell/genai-underwriting-workbench-demo/
+cd genai-underwriting-workbench-demo
+```
 
 ## Bootstrap and Deploy the CDK Stack
 
