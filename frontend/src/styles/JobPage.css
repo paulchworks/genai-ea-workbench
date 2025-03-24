@@ -910,6 +910,107 @@
     box-shadow: 0 2px 5px rgba(37, 99, 235, 0.3);
   }
 
+  .progress-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #e0f2fe;
+    border-radius: 8px;
+    color: #0369a1;
+    font-weight: 500;
+    text-align: center;
+    animation: fade-in 0.3s ease-in-out;
+  }
+  
+  /* Animation moved to JobPage.css */
+  
+  .progress-container {
+    margin: 40px auto;
+    padding: 35px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    max-width: 800px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    animation: fadeIn 0.8s ease-out;
+  }
+  
+  .progress-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 35px;
+    width: 100%;
+  }
+  
+  .progress-icon {
+    color: white;
+    font-size: 18px;
+    position: relative;
+    z-index: 3;
+  }
+  
+  .progress-dot {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .progress-dot.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    animation: pulse 1.5s infinite;
+  }
+  
+  .progress-dot.active::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border-radius: 50%;
+    z-index: 2;
+  }
+  
+  .progress-line {
+    flex-grow: 1;
+    height: 5px;
+    background: #e2e8f0;
+    margin: 0 15px;
+    max-width: 200px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .progress-line.active {
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    animation: line-pulse 2s infinite;
+  }
+  
+  .progress-label {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 15px;
+    letter-spacing: -0.01em;
+  }
+  
+  .progress-details {
+    text-align: center;
+    color: #4a5568;
+    font-size: 14px;
+    padding: 15px 25px;
+    background: #f7fafc;
+    border-radius: 10px;
+  }
+
 /* Animation for fade in */
 @keyframes fadeIn {
   from {

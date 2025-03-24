@@ -34,8 +34,8 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 # Initialize AWS clients
-dynamodb = boto3.client('dynamodb', region_name='us-east-1')
-s3 = boto3.client('s3', region_name='us-east-1')
+dynamodb = boto3.client('dynamodb')
+s3 = boto3.client('s3')
 ANALYSIS_TABLE_NAME = os.environ.get('ANALYSIS_TABLE_NAME', 'insurance_analysis')
 UPLOAD_BUCKET_NAME = os.environ.get('UPLOAD_BUCKET_NAME', 'rga-underwriting-genai-demo')
 AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD', 'demo123')
