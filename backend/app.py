@@ -38,14 +38,14 @@ dynamodb = boto3.client('dynamodb')
 s3 = boto3.client('s3')
 ANALYSIS_TABLE_NAME = os.environ.get('ANALYSIS_TABLE_NAME', 'insurance_analysis')
 UPLOAD_BUCKET_NAME = os.environ.get('UPLOAD_BUCKET_NAME', 'rga-underwriting-genai-demo')
-AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD', 'demo123')
+AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD')
+if not AUTH_PASSWORD:
+    logger.error("AUTH_PASSWORD environment variable is required but not set.")
+    logger.error("Please set AUTH_PASSWORD environment variable and restart the application.")
+    exit(1)
 logger.info(f"ANALYSIS_TABLE_NAME: {ANALYSIS_TABLE_NAME}")
 logger.info(f"UPLOAD_BUCKET_NAME: {UPLOAD_BUCKET_NAME}")
 logger.info(f"AUTH_PASSWORD: {AUTH_PASSWORD}")
-
-# Add authentication configuration
-AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD', 'demo123')  # Default password for development
-
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -85,7 +85,7 @@ def authenticate():
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok'}), 200
+    return jsonify({'status': 'healthy'}), 200
 
 # Add login endpoint
 @app.route('/login', methods=['POST'])
