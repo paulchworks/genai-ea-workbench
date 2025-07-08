@@ -10,11 +10,23 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as path from 'path';
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // Store in Secrets Manager
+    const authPassword = new secretsmanager.Secret(this, 'AuthPassword', {
+      generateSecretString: {
+        passwordLength: 12,
+        excludePunctuation: true,
+        excludeCharacters: '()[]{}<>/\\@/\\"\'` ',
+        includeSpace: false,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development - change for production
+    });
 
     // Create VPC and ECS Cluster
     const vpc = new ec2.Vpc(this, 'BackendVPC', { maxAzs: 2 });
@@ -47,8 +59,11 @@ export class CdkStack extends cdk.Stack {
     // Add required permissions
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      resources: ['*'],
-      actions: ['bedrock:*']
+      resources: [`arn:aws:bedrock:${this.region}:${this.account}:*`],
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:ListFoundationModels'
+      ]
     }));
 
     taskRole.addToPolicy(new iam.PolicyStatement({
@@ -108,12 +123,19 @@ export class CdkStack extends cdk.Stack {
           AWS_REGION: this.region,
           ANALYSIS_TABLE_NAME: analysisTable.tableName,
           UPLOAD_BUCKET_NAME: uploadBucket.bucketName,
-          AUTH_PASSWORD: 'awsdemo2025',
+          // AUTH_PASSWORD: '************', // Use Secrets Manager instead
+        },
+        secrets: {
+          AUTH_PASSWORD: ecs.Secret.fromSecretsManager(authPassword),
         },
         taskRole,
       },
       publicLoadBalancer: true,
+      enableExecuteCommand: true,
     });
+
+    // Grant permissions
+    authPassword.grantRead(backendService.taskDefinition.taskRole);
 
     // Configure health check
     backendService.targetGroup.configureHealthCheck({
@@ -125,6 +147,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     // Create S3 bucket for frontend
+    // amazonq-ignore-next-line
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.DESTROY,

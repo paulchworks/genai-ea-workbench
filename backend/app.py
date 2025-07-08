@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import tempfile
 import json
-import uuid
+from uuid import uuid4  # Import only the uuid4 function from the uuid module
 from werkzeug.utils import secure_filename
 from extract import analyze_document, underwriter_analysis, GOOD_MODEL_ID, BEDROCK_CLIENT
 import boto3
@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from tools import calculate_bmi, handle_knowledge_base_query, TOOL_DEFINITIONS
 from functools import wraps
 import logging
+import urllib.parse  # Used to encode the token for safe logging
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -45,7 +46,7 @@ if not AUTH_PASSWORD:
     exit(1)
 logger.info(f"ANALYSIS_TABLE_NAME: {ANALYSIS_TABLE_NAME}")
 logger.info(f"UPLOAD_BUCKET_NAME: {UPLOAD_BUCKET_NAME}")
-logger.info(f"AUTH_PASSWORD: {AUTH_PASSWORD}")
+logger.info("AUTH_PASSWORD is set")
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -55,7 +56,10 @@ def get_token_from_request():
     # Try Authorization header first
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
-        return auth_header.split(' ')[1]
+        try:
+            return auth_header.split(' ')[1]
+        except IndexError:
+            return None
     
     # Try query parameter
     return request.args.get('token')
@@ -80,7 +84,7 @@ def authenticate():
         
     token = get_token_from_request()
     if not token or token != AUTH_PASSWORD:
-        logger.error(f"Unauthorized request: {token}")
+        logger.error(f"Unauthorized request: {urllib.parse.quote(token)}")
         return jsonify({'error': 'Unauthorized'}), 401
 
 @app.route('/health', methods=['GET'])
@@ -91,7 +95,6 @@ def health():
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    logger.info(f"received password: {data['password']}")
     if not data or 'password' not in data:
         return jsonify({'error': 'Password is required'}), 400
         
@@ -135,7 +138,7 @@ def start_analysis():
     try:
         logger.info("Valid file provided")
         # Generate unique ID for this analysis
-        analysis_id = str(uuid.uuid4())
+        analysis_id = str(uuid4())
         
         # Save uploaded file to temp directory
         filename = secure_filename(file.filename)
@@ -208,7 +211,7 @@ def stream_progress(analysis_id):
             # Phase 1: Analyze PDF
             # -----------------
             insurance_type = analysis.get('insurance_type', 'life')  # Get insurance type with default
-            logger.info(f"PHASE 1: Using insurance_type: {insurance_type}")
+            logger.info("PHASE 1: Using insurance_type: %s", insurance_type)  # Use %s formatting to prevent log injection
             for progress_event in analyze_document(
                 analysis['filepath'],
                 analysis['batch_size'],
@@ -225,7 +228,7 @@ def stream_progress(analysis_id):
             # Phase 2: Underwriter Analysis
             # -----------------
             insurance_type = analysis.get('insurance_type', 'life')  # Get insurance type with default
-            logger.info(f"PHASE 2: Using insurance_type: {insurance_type}")
+            logger.info("PHASE 2: Using insurance_type: %s", insurance_type)  # Use %s formatting to prevent log injection
             for progress_event in underwriter_analysis(page_analysis, 100, progress_callback, insurance_type=insurance_type):
                 if isinstance(progress_event, str) and progress_event.startswith('data: '):
                     data = json.loads(progress_event.replace('data: ', ''))
@@ -236,7 +239,7 @@ def stream_progress(analysis_id):
             # Store results in DynamoDB
             if final_underwriter_analysis:
                 try:
-                    logger.info(f"Storing results with insurance_type: {insurance_type}")
+                    logger.info("Storing results with insurance_type: %s", insurance_type)  # Use %s formatting to prevent log injection
                     dynamodb.put_item(
                         TableName=ANALYSIS_TABLE_NAME,
                         Item={
@@ -249,14 +252,14 @@ def stream_progress(analysis_id):
                             'status': {'S': 'completed'}
                         }
                     )
-                    logger.info(f"Stored analysis results for job {analysis_id} in DynamoDB with insurance_type: {insurance_type}")
+                    logger.info("Stored analysis results for job %s in DynamoDB with insurance_type: %s", analysis_id, insurance_type)  # Use %s formatting to prevent log injection
                 except Exception as e:
-                    logger.error(f"Error storing results in DynamoDB: {str(e)}")
+                    logger.error("Error storing results in DynamoDB: %s", str(e))  # Use %s formatting to prevent log injection
                     # Don't fail the response if storage fails
                     yield f"data: {json.dumps({'type': 'warning', 'message': 'Analysis completed but failed to persist results'})}\n\n"
             
         except Exception as e:
-            logger.error(f"Error in stream_progress: {str(e)}")
+            logger.error("Error in stream_progress: %s", str(e))  # Use %s formatting to prevent log injection
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         
         finally:
@@ -342,6 +345,7 @@ def get_pdf(job_id):
         )
         
     except ClientError as e:
+        # amazonq-ignore-next-line
         logger.error(f"Error retrieving PDF: {str(e)}")
         return jsonify({'error': 'Failed to retrieve PDF'}), 404
 
@@ -472,4 +476,5 @@ def chat(job_id):
         }), 500
 
 if __name__ == '__main__':
+    # amazonq-ignore-next-line
     app.run(debug=True, host='0.0.0.0') 

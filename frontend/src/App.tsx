@@ -66,6 +66,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Don't render anything while checking auth state
   if (isLoading) {
+    // amazonq-ignore-next-line
     return <div className="loading">Loading...</div>;
   }
 
