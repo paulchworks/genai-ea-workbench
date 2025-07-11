@@ -1,6 +1,6 @@
 from flask import request, jsonify
 import os
-import uuid
+from uuid import uuid4  # Used to generate unique identifiers for analysis
 import threading
 import json
 from werkzeug.utils import secure_filename
@@ -19,7 +19,7 @@ def start_analysis():
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        analysis_id = str(uuid.uuid4())
+        analysis_id = str(uuid4())  # from uuid import uuid4
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{analysis_id}_{filename}")
         file.save(filepath)
         

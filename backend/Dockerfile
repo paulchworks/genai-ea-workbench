@@ -1,4 +1,5 @@
-FROM --platform=linux/amd64 public.ecr.aws/docker/library/python:3.9-slim
+ARG PYTHON_VERSION=3.9.23
+FROM --platform=linux/amd64 public.ecr.aws/docker/library/python:${PYTHON_VERSION}-slim
 
 WORKDIR /app
 
@@ -25,4 +26,10 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1
+
+# CMD ["python", "app.py"]
+# Run the application using Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]

@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 # from knowledge_base import query_combined_knowledge_base
+import logging
 
 def calculate_bmi(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -11,8 +12,8 @@ def calculate_bmi(input_data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary containing BMI calculation and categorization
     """
-    print("in calculate_bmi")
-    print("input_data", input_data)
+    logging.info("Calculating BMI")
+    logging.debug(f"Input data: {input_data}")
     try:
         height = float(input_data["height"])
         weight = float(input_data["weight"])
@@ -29,7 +30,7 @@ def calculate_bmi(input_data: Dict[str, Any]) -> Dict[str, Any]:
     except (KeyError, ValueError, TypeError) as e:
         return {"error": f"Invalid input: {str(e)}"}
 
-def handle_knowledge_base_query(input_data: Dict[str, Any], conversation_history: List[Dict[str, Any]] = None) -> str:
+def handle_knowledge_base_query(input_data: Dict[str, Any], conversation_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Handle queries to the combined knowledge base.
     
@@ -38,14 +39,14 @@ def handle_knowledge_base_query(input_data: Dict[str, Any], conversation_history
         conversation_history: Optional list of previous messages for context
         
     Returns:
-        Formatted response with citations and further reading
+        Dictionary containing the response or error message
     """
     try:
         print("in handle_knowledge_base_query")
         print("input_data", input_data)
         print("conversation_history", conversation_history)
         question = input_data["question"]
-        return "This is a placeholder response. The actual implementation of the knowledge base query is not yet available."
+        return {"response": "This is a placeholder response. The actual implementation of the knowledge base query is not yet available."}
         # return query_combined_knowledge_base(question)
     except (KeyError, ValueError, TypeError) as e:
         return {"error": f"Invalid input: {str(e)}"}

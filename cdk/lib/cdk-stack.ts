@@ -47,8 +47,11 @@ export class CdkStack extends cdk.Stack {
     // Add required permissions
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      resources: ['*'],
-      actions: ['bedrock:*']
+      resources: [`arn:aws:bedrock:${this.region}:${this.account}:*`],
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:ListFoundationModels'
+      ]
     }));
 
     taskRole.addToPolicy(new iam.PolicyStatement({
@@ -108,11 +111,12 @@ export class CdkStack extends cdk.Stack {
           AWS_REGION: this.region,
           ANALYSIS_TABLE_NAME: analysisTable.tableName,
           UPLOAD_BUCKET_NAME: uploadBucket.bucketName,
-          AUTH_PASSWORD: 'awsdemo2025',
+          AUTH_PASSWORD: 'awsdemo2025', // This is for demonstration purposes only. Use Congito or Secrets Manager in production.
         },
         taskRole,
       },
       publicLoadBalancer: true,
+      enableExecuteCommand: true,
     });
 
     // Configure health check
@@ -125,6 +129,7 @@ export class CdkStack extends cdk.Stack {
     });
 
     // Create S3 bucket for frontend
+    // amazonq-ignore-next-line
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
