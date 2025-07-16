@@ -8,15 +8,15 @@ import { useNavigate } from 'react-router-dom'
 import { HowItWorksDrawer } from './HowItWorksDrawer'
 // FontAwesome imports
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { 
-  faFileAlt, 
-  faFileContract, 
-  faComments, 
-  faChevronRight, 
-  faChevronLeft, 
-  faExpandAlt, 
-  faCompressAlt, 
-  faSearchPlus, 
+import {
+  faFileAlt,
+  faFileContract,
+  faComments,
+  faChevronRight,
+  faChevronLeft,
+  faExpandAlt,
+  faCompressAlt,
+  faSearchPlus,
   faSearchMinus,
   faInfoCircle,
   faFileMedical,
@@ -128,9 +128,9 @@ const markdownStyles: Record<string, CSSProperties> = {
   code: { background: '#f1f5f9', padding: '0.2em 0.4em', borderRadius: '3px' },
   table: { borderCollapse: 'collapse', width: '100%' },
   'th,td': { border: '1px solid #e2e8f0', padding: '8px' },
-  blockquote: { 
-    borderLeft: '4px solid #e2e8f0', 
-    margin: '0.5em 0', 
+  blockquote: {
+    borderLeft: '4px solid #e2e8f0',
+    margin: '0.5em 0',
     padding: '0.5em 1em',
     background: '#f8fafc'
   }
@@ -157,8 +157,8 @@ const PageReference = ({ pageNum, text }: { pageNum: string, text: string }) => 
 }
 
 // Add these contexts before the JobPage component
-const PageContext = createContext<[number, (page: number) => void]>([1, () => {}])
-const NumPagesContext = createContext<[number | null, (pages: number | null) => void]>([null, () => {}])
+const PageContext = createContext<[number, (page: number) => void]>([1, () => { }])
+const NumPagesContext = createContext<[number | null, (pages: number | null) => void]>([null, () => { }])
 
 // First, add a type for the tab options
 type TabType = 'grouped' | 'underwriter' | 'chat';
@@ -169,189 +169,189 @@ const getDocumentIcon = (documentType: string) => {
   if (/medic(al|ation)|(health|disease)/i.test(documentType)) {
     return faFileMedical;
   }
-  
+
   // Match for medical history
   if (/history|anamnesis/i.test(documentType)) {
     return faHistory;
   }
-  
+
   // Match for pharmacy or medication
   if (/pharmac(y|eutical)|medication|drug|prescription/i.test(documentType)) {
     return faPills;
   }
-  
+
   // Match for laboratory or clinical tests
   if (/lab(oratory)?|clinical|test|specimen/i.test(documentType)) {
     return faFlask;
   }
-  
+
   // Match for doctor/physician
   if (/physician|doctor|practitioner|clinician|md\b/i.test(documentType)) {
     return faUserMd;
   }
-  
+
   // Match for examination/paramedical
   if (/exam(ination)?|assessment|paramedical/i.test(documentType)) {
     return faStethoscope;
   }
-  
+
   // Match for hospital/clinic
   if (/hospital|clinic|center|facility|institution/i.test(documentType)) {
     return faHospital;
   }
-  
+
   // Match for X-Ray/imaging
   if (/x-ray|imaging|scan|radiolog(y|ical)|mri|ct scan/i.test(documentType)) {
     return faXRay;
   }
-  
+
   // Match for surgical/procedure
   if (/surg(ery|ical)|procedure|operation/i.test(documentType)) {
     return faProcedures;
   }
-  
+
   // Match for cardiology
   if (/cardio|heart|cardiac|pulse|ekg|ecg/i.test(documentType)) {
     return faHeartbeat;
   }
-  
+
   // Match for pulmonary
   if (/pulmonary|lung|respiratory|breath/i.test(documentType)) {
     return faLungs;
   }
-  
+
   // Match for allergy
   if (/allerg(y|ies)|immunolog(y|ical)/i.test(documentType)) {
     return faAllergies;
   }
-  
+
   // Match for dental
   if (/dental|dentist|tooth|teeth|oral/i.test(documentType)) {
     return faTooth;
   }
-  
+
   // Match for ophthalmology
   if (/eye|vision|ophthalm(ology|ologist)|optical/i.test(documentType)) {
     return faEye;
   }
-  
+
   // Match for insurance/financial
   if (/insurance|financial|coverage|policy|premium|underwriter/i.test(documentType)) {
     return faFileInvoiceDollar;
   }
-  
+
   // Match for forms/questionnaires
   if (/form|(question|survey)(naire)?|assessment/i.test(documentType)) {
     return faClipboardList;
   }
-  
+
   // Match for detailed medical notes
   if (/note|report|summary|record/i.test(documentType)) {
     return faNotesMedical;
   }
-  
+
   // Match for microscopic/detailed analysis
   if (/microscop(e|ic)|patholog(y|ical)|cytolog(y|ical)|histolog(y|ical)/i.test(documentType)) {
     return faMicroscope;
   }
-  
+
   // Match for blood/specimen tests
   if (/blood|hematolog(y|ical)|serum|plasma|specimen/i.test(documentType)) {
     return faVial;
   }
-  
+
   // Match for emergency/urgent care
   if (/emergency|urgent|trauma|ambulance|ems/i.test(documentType)) {
     return faBriefcaseMedical;
   }
-  
+
   // Property & Casualty Insurance Documents
-  
+
   // Match for home/property insurance
   if (/home|property|dwelling|real estate|building|structure/i.test(documentType)) {
     return faHome;
   }
-  
+
   // Match for auto insurance
   if (/auto|car|vehicle|motorcycle|truck|collision/i.test(documentType)) {
     return faCar;
   }
-  
+
   // Match for commercial property
   if (/commercial|business property|office|warehouse|retail/i.test(documentType)) {
     return faBuilding;
   }
-  
+
   // Match for umbrella/liability policies
   if (/umbrella|liability|excess|protection/i.test(documentType)) {
     return faUmbrella;
   }
-  
+
   // Match for flood insurance
   if (/flood|water damage|rising water|overflow/i.test(documentType)) {
     return faWater;
   }
-  
+
   // Match for fire insurance/protection
   if (/fire|flame|burn|combustion|smoke/i.test(documentType)) {
     return faFire;
   }
-  
+
   // Match for legal/liability documents
   if (/legal|liability|lawsuit|litigation|tort/i.test(documentType)) {
     return faBalanceScale;
   }
-  
+
   // Match for hazard/risk documents
   if (/hazard|risk|danger|peril|warning/i.test(documentType)) {
     return faExclamationTriangle;
   }
-  
+
   // Match for commercial auto/fleet
   if (/fleet|commercial auto|commercial vehicle|transport/i.test(documentType)) {
     return faTruck;
   }
-  
+
   // Match for workers' compensation
   if (/workers comp|workers' compensation|workplace injury|occupational/i.test(documentType)) {
     return faHardHat;
   }
-  
+
   // Match for industrial/manufacturing
   if (/industrial|manufacturing|factory|plant|production/i.test(documentType)) {
     return faIndustry;
   }
-  
+
   // Match for storm/weather related
   if (/storm|hurricane|tornado|hail|weather damage/i.test(documentType)) {
     return faCloudShowersHeavy;
   }
-  
+
   // Match for wind damage
   if (/wind|windstorm|gust|gale/i.test(documentType)) {
     return faWind;
   }
-  
+
   // Match for roadway/traffic incidents
   if (/roadway|highway|traffic|intersection|accident|crash/i.test(documentType)) {
     return faRoad;
   }
-  
+
   // Match for protection/security
   if (/protection|security|safeguard|defense|safety/i.test(documentType)) {
     return faShieldAlt;
   }
-  
+
   // Match for claims/legal judgments
   if (/claim|judgment|settlement|adjudication|ruling/i.test(documentType)) {
     return faGavel;
   }
-  
+
   // Default for contract/agreement
   if (/contract|agreement|terms|certificate/i.test(documentType)) {
     return faFileContract;
   }
-  
+
   // Default fallback
   return faFileAlt;
 };
@@ -391,23 +391,23 @@ export function JobPage({ jobId }: JobPageProps) {
   // Calculate PDF width based on container size
   useEffect(() => {
     const calculatePdfWidth = () => {
-      const containerWidth = isAnalysisPanelOpen 
+      const containerWidth = isAnalysisPanelOpen
         ? window.innerWidth * 0.45 // When split view is active
         : window.innerWidth * 0.9; // When PDF is expanded
-      
+
       // Set a maximum width to prevent the PDF from being too large
       const maxWidth = 1000;
       const width = Math.min(containerWidth, maxWidth);
-      
+
       setPdfWidth(width);
     };
 
     // Calculate initially
     calculatePdfWidth();
-    
+
     // Recalculate on window resize
     window.addEventListener('resize', calculatePdfWidth);
-    
+
     // Clean up
     return () => {
       window.removeEventListener('resize', calculatePdfWidth);
@@ -420,7 +420,7 @@ export function JobPage({ jobId }: JobPageProps) {
       const insuranceType = analysisData.insurance_type;
       console.log("INSURANCE TYPE detected in JobPage:", insuranceType);
       let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
-      
+
       if (insuranceType === 'property_casualty') {
         greeting = "Hello! I'm your Property & Casualty insurance underwriting assistant. I've analyzed this document and can help with questions about property details, risk factors, and coverage considerations.";
         console.log("Using P&C GREETING");
@@ -428,7 +428,7 @@ export function JobPage({ jobId }: JobPageProps) {
         greeting = "Hello! I'm your Life Insurance underwriting assistant. I've analyzed this document and can help with questions about medical history, risk factors, and policy considerations.";
         console.log("Using LIFE GREETING");
       }
-      
+
       setMessages([{
         id: '1',
         text: greeting,
@@ -452,7 +452,7 @@ export function JobPage({ jobId }: JobPageProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch PDF')
       }
-      
+
       const blob = await response.blob()
       const blobUrl = URL.createObjectURL(blob)
       setPdfBlob(blob)
@@ -504,13 +504,8 @@ export function JobPage({ jobId }: JobPageProps) {
 
   // Function to establish streaming connection
   const connectToStream = (): EventSource | null => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      // handleUnauthorized(); // Removed as per edit hint
-      return null;
-    }
 
-    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/analyze-progress/${jobId}?token=${token}`)
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/analyze-progress/${jobId}`)
     setStreamConnected(true)
 
     // Clear any existing errors when we start a new connection
@@ -529,7 +524,7 @@ export function JobPage({ jobId }: JobPageProps) {
         } else if (eventData.type === 'phase1_complete') {
           setCurrentStep(2);
           setCurrentPhase('Underwriter Analysis');
-          
+
           // Use different message based on insurance type
           const insuranceType = analysisData?.insurance_type || 'life';
           if (insuranceType === 'property_casualty') {
@@ -537,7 +532,7 @@ export function JobPage({ jobId }: JobPageProps) {
           } else {
             setPhaseDetails('Analyzing medical history and mortality risk factors...');
           }
-          
+
         } else if (eventData.type === 'complete') {
           setCurrentStep(3);
           setCurrentPhase('Complete');
@@ -619,13 +614,13 @@ export function JobPage({ jobId }: JobPageProps) {
   }
 
   const renderGroupedAnalysis = () => {
-    const analysis = (partialAnalysis && Object.keys(partialAnalysis).length > 0) 
-      ? partialAnalysis 
+    const analysis = (partialAnalysis && Object.keys(partialAnalysis).length > 0)
+      ? partialAnalysis
       : analysisData?.page_analysis
 
     if (!analysis || Object.keys(analysis).length === 0) {
-        console.log("No analysis data available")
-        return null
+      console.log("No analysis data available")
+      return null
     }
 
     // Convert object entries to array
@@ -637,22 +632,22 @@ export function JobPage({ jobId }: JobPageProps) {
         content
       }
     })
-    
+
     // Group pages by document type (text before any dash)
     const groups: Record<string, typeof pages> = {}
-    
+
     pages.forEach(page => {
       // Get the document type (text before the dash)
       const dashIndex = page.pageType.indexOf('-')
-      const docType = dashIndex > 0 
-        ? page.pageType.substring(0, dashIndex).trim() 
+      const docType = dashIndex > 0
+        ? page.pageType.substring(0, dashIndex).trim()
         : page.pageType.trim()
-      
+
       // Create the group if it doesn't exist
       if (!groups[docType]) {
         groups[docType] = []
       }
-      
+
       // Add the page to its group
       groups[docType].push(page)
     })
@@ -663,13 +658,13 @@ export function JobPage({ jobId }: JobPageProps) {
           // Sort pages by page number to ensure we get the first page of the section
           const sortedPages = [...groupPages].sort((a, b) => a.pageNum - b.pageNum);
           const firstPageInGroup = sortedPages[0]?.pageNum;
-          
+
           return (
-            <div 
+            <div
               key={groupTitle}
               className={`analysis-group`}
             >
-              <button 
+              <button
                 className={`group-header ${expandedGroups.has(groupTitle) ? 'expanded' : ''}`}
                 onClick={(e) => {
                   // Toggle the expanded state
@@ -680,7 +675,7 @@ export function JobPage({ jobId }: JobPageProps) {
                     updatedGroups.add(groupTitle);
                   }
                   setExpandedGroups(updatedGroups);
-                  
+
                   // Navigate to the first page of the group
                   if (firstPageInGroup) {
                     setCurrentPage(firstPageInGroup);
@@ -691,15 +686,15 @@ export function JobPage({ jobId }: JobPageProps) {
                   <FontAwesomeIcon icon={getDocumentIcon(groupTitle)} />
                   {groupTitle} ({groupPages.length} {groupPages.length === 1 ? 'page' : 'pages'})
                 </div>
-                <FontAwesomeIcon 
-                  icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight} 
+                <FontAwesomeIcon
+                  icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight}
                 />
               </button>
-              
+
               {expandedGroups.has(groupTitle) && (
                 <div className="group-content">
                   {groupPages.map(page => (
-                    <div 
+                    <div
                       key={page.pageNum}
                       className={`page-card ${currentPage === page.pageNum ? 'active' : ''}`}
                       onClick={() => setCurrentPage(page.pageNum)}
@@ -726,26 +721,26 @@ export function JobPage({ jobId }: JobPageProps) {
 
   const renderUnderwriterAnalysis = () => {
     if (!analysisData?.underwriter_analysis) return null;
-    
+
     console.log("renderUnderwriterAnalysis - insurance type:", analysisData?.insurance_type);
-    
+
     // Define the order of sections with appropriate icons based on insurance type
-    const sectionConfig = (analysisData.insurance_type === 'property_casualty') 
+    const sectionConfig = (analysisData.insurance_type === 'property_casualty')
       ? [
-          { key: 'RISK_ASSESSMENT', icon: faClipboardCheck },
-          { key: 'DISCREPANCIES', icon: faClipboardList },
-          { key: 'PROPERTY_ASSESSMENT', icon: faHome },
-          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
-        ]
+        { key: 'RISK_ASSESSMENT', icon: faClipboardCheck },
+        { key: 'DISCREPANCIES', icon: faClipboardList },
+        { key: 'PROPERTY_ASSESSMENT', icon: faHome },
+        { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+      ]
       : [
-          { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
-          { key: 'DISCREPANCIES', icon: faClipboardList },
-          { key: 'MEDICAL_TIMELINE', icon: faHistory },
-          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
-        ];
-    
+        { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
+        { key: 'DISCREPANCIES', icon: faClipboardList },
+        { key: 'MEDICAL_TIMELINE', icon: faHistory },
+        { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+      ];
+
     console.log("Using section config:", sectionConfig.map(s => s.key).join(', '));
-    
+
     return (
       <div className="underwriter-analysis">
         {sectionConfig.map(({key, icon}) => {
@@ -754,9 +749,9 @@ export function JobPage({ jobId }: JobPageProps) {
             console.log(`No content found for section: ${key}`);
             return null;
           }
-          
+
           console.log(`Rendering section: ${key} with content length: ${content.length}`);
-          
+
           return (
             <div key={key} className="analysis-section">
               <h3><FontAwesomeIcon icon={icon} /> {key.replace(/_/g, ' ')}</h3>
@@ -767,11 +762,11 @@ export function JobPage({ jobId }: JobPageProps) {
                   if (pageMatches) {
                     let lastIndex = 0
                     const parts: JSX.Element[] = []
-                    
+
                     pageMatches.forEach((match: string) => {
                       const index = line.indexOf(match, lastIndex)
                       const pageNum = match.match(/\d+/)?.[0]
-                      
+
                       // Add text before the match
                       if (index > lastIndex) {
                         parts.push(
@@ -780,21 +775,21 @@ export function JobPage({ jobId }: JobPageProps) {
                           </span>
                         )
                       }
-                      
+
                       // Add the page reference
                       if (pageNum) {
                         parts.push(
-                          <PageReference 
+                          <PageReference
                             key={`ref-${i}-${index}`}
                             pageNum={pageNum}
                             text={match}
                           />
                         )
                       }
-                      
+
                       lastIndex = index + match.length
                     })
-                    
+
                     // Add any remaining text
                     if (lastIndex < line.length) {
                       parts.push(
@@ -803,7 +798,7 @@ export function JobPage({ jobId }: JobPageProps) {
                         </span>
                       )
                     }
-                    
+
                     return <p key={i}>{parts}</p>
                   }
                   return <p key={i}>{line}</p>
@@ -850,7 +845,7 @@ export function JobPage({ jobId }: JobPageProps) {
       }
 
       const data = await response.json()
-      
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: data.response,
@@ -879,16 +874,16 @@ export function JobPage({ jobId }: JobPageProps) {
         <div className="container">
           {/* Navigation buttons */}
           <div className="page-navigation">
-            <button 
-              onClick={() => navigate('/')} 
+            <button
+              onClick={() => navigate('/')}
               className="nav-button"
             >
               <FontAwesomeIcon icon={faFileMedical} /> Upload New
             </button>
           </div>
-          
+
           {/* How It Works Button */}
-          <button 
+          <button
             className="how-it-works-button"
             onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
           >
@@ -918,11 +913,11 @@ export function JobPage({ jobId }: JobPageProps) {
           {(currentStep < 3 || currentPhase !== 'Complete') && (
             <>
               <h1>Analysis Progress</h1>
-              
+
               {error && showError && (
                 <div className="error-message">
                   {error}
-                  <button 
+                  <button
                     onClick={() => {
                       setError(null)
                       setShowError(false)
@@ -935,7 +930,7 @@ export function JobPage({ jobId }: JobPageProps) {
                   </button>
                 </div>
               )}
-              
+
               <div className="progress-container">
                 <div className="progress-steps">
                   <div className={`progress-dot ${currentStep >= 1 ? 'active' : ''}`}>
@@ -955,11 +950,11 @@ export function JobPage({ jobId }: JobPageProps) {
               </div>
             </>
           )}
-          
+
           {error && showError && !(currentStep < 3 || currentPhase !== 'Complete') && (
             <div className="error-message">
               {error}
-              <button 
+              <button
                 onClick={() => {
                   setError(null)
                   setShowError(false)
@@ -975,7 +970,7 @@ export function JobPage({ jobId }: JobPageProps) {
 
           {(partialAnalysis || analysisData) && (
             <div style={{ position: 'relative' }}>
-              <Split 
+              <Split
                 className="split-view"
                 sizes={isAnalysisPanelOpen ? [50, 50] : [100, 0]}
                 minSize={[300, 0]}
@@ -992,28 +987,28 @@ export function JobPage({ jobId }: JobPageProps) {
                       >
                         <div className="pdf-container">
                           <div className="pdf-controls">
-                            <button 
+                            <button
                               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                               disabled={currentPage <= 1}
                             >
                               <FontAwesomeIcon icon={faChevronLeft} /> Previous
                             </button>
                             <span>{`Page ${currentPage} of ${numPages}`}</span>
-                            <button 
+                            <button
                               onClick={() => setCurrentPage(p => Math.min(numPages || p, p + 1))}
                               disabled={currentPage >= (numPages || 1)}
                             >
                               Next <FontAwesomeIcon icon={faChevronRight} />
                             </button>
                             <div className="zoom-controls">
-                              <button 
+                              <button
                                 onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
                                 disabled={scale <= 0.5}
                               >
                                 <FontAwesomeIcon icon={faSearchMinus} />
                               </button>
                               <span className="zoom-level">{`${Math.round(scale * 100)}%`}</span>
-                              <button 
+                              <button
                                 onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
                                 disabled={scale >= 2.0}
                               >
@@ -1021,8 +1016,8 @@ export function JobPage({ jobId }: JobPageProps) {
                               </button>
                             </div>
                           </div>
-                          <Page 
-                            pageNumber={currentPage} 
+                          <Page
+                            pageNumber={currentPage}
                             renderTextLayer={false}
                             renderAnnotationLayer={false}
                             scale={scale}
@@ -1036,23 +1031,23 @@ export function JobPage({ jobId }: JobPageProps) {
 
                 <div className={`analysis-viewer ${!isAnalysisPanelOpen ? 'collapsed' : ''}`}>
                   <div className="tabs">
-                    <button 
+                    <button
                       className={`tab-button ${activeTab === 'grouped' ? 'active' : ''}`}
                       onClick={() => setActiveTab('grouped')}
                     >
                       <FontAwesomeIcon icon={faFileAlt} /> Document Analysis
                     </button>
-                    <button 
+                    <button
                       className={`tab-button ${activeTab === 'underwriter' ? 'active' : ''}`}
                       onClick={() => setActiveTab('underwriter')}
                     >
                       <FontAwesomeIcon icon={faFileContract} /> Underwriter Analysis
                     </button>
-                    <button 
+                    <button
                       className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
                       onClick={() => setActiveTab('chat')}
                     >
-                      <FontAwesomeIcon icon={faComments} /> 
+                      <FontAwesomeIcon icon={faComments} />
                       Chat Assistant
                       {analysisData?.insurance_type && (
                         <span className={`chat-type-indicator ${analysisData.insurance_type === 'property_casualty' ? 'p-and-c' : 'life'}`}>
@@ -1074,8 +1069,8 @@ export function JobPage({ jobId }: JobPageProps) {
                             <div className="chat-interface">
                               <div className="chat-messages">
                                 {messages.map(message => (
-                                  <div 
-                                    key={message.id} 
+                                  <div
+                                    key={message.id}
                                     className={`chat-message ${message.sender}`}
                                   >
                                     <div className={`chat-avatar ${message.sender}`}>
@@ -1085,12 +1080,12 @@ export function JobPage({ jobId }: JobPageProps) {
                                       {message.sender === 'user' ? (
                                         message.text
                                       ) : (
-                                        <ReactMarkdown 
+                                        <ReactMarkdown
                                           remarkPlugins={[remarkGfm]}
                                           components={{
                                             a: ({href, children}) => (
-                                              <a 
-                                                href={href} 
+                                              <a
+                                                href={href}
                                                 onClick={handleLinkClick}
                                                 className="page-reference"
                                               >
@@ -1148,8 +1143,8 @@ export function JobPage({ jobId }: JobPageProps) {
                                       }
                                     }}
                                   />
-                                  <button 
-                                    type="submit" 
+                                  <button
+                                    type="submit"
                                     className="chat-send"
                                     disabled={!newMessage.trim() || isTyping}
                                   >
@@ -1166,7 +1161,7 @@ export function JobPage({ jobId }: JobPageProps) {
                   </div>
                 </div>
               </Split>
-              <button 
+              <button
                 className="analysis-toggle"
                 onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
                 aria-label={isAnalysisPanelOpen ? "Hide Analysis" : "Show Analysis"}

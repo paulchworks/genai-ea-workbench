@@ -4,6 +4,6 @@ import * as cdk from 'aws-cdk-lib';
 import { CdkStack } from '../lib/cdk-stack';
 
 const app = new cdk.App();
-new CdkStack(app, 'AWS-UW-V2', {
+new CdkStack(app, 'AWS-GENAI-UW-DEMO', {
 
 });

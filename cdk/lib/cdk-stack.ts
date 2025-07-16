@@ -47,10 +47,10 @@ export class CdkStack extends cdk.Stack {
     // Add required permissions
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      resources: [`arn:aws:bedrock:${this.region}:${this.account}:*`],
+      resources: ['*'],
       actions: [
         'bedrock:InvokeModel',
-        'bedrock:ListFoundationModels'
+        'bedrock:ListFoundationModels',
       ]
     }));
 
@@ -100,7 +100,7 @@ export class CdkStack extends cdk.Stack {
     const backendService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'BackendService', {
       cluster,
       cpu: 1024, // Increased for ML workloads
-      memoryLimitMiB: 2048,
+      memoryLimitMiB: 4096,
       desiredCount: 1,
       taskImageOptions: {
         containerPort: 5000,

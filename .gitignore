@@ -7,4 +7,6 @@ frontend/node_modules
 frontend/dist
 frontend/build
 node_modules
-
+*/.venv
+*/venv
+*.pyc
