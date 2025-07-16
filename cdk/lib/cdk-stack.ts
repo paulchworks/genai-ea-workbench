@@ -111,7 +111,6 @@ export class CdkStack extends cdk.Stack {
           AWS_REGION: this.region,
           ANALYSIS_TABLE_NAME: analysisTable.tableName,
           UPLOAD_BUCKET_NAME: uploadBucket.bucketName,
-          AUTH_PASSWORD: 'awsdemo2025', // This is for demonstration purposes only. Use Congito or Secrets Manager in production.
         },
         taskRole,
       },
@@ -201,15 +200,6 @@ export class CdkStack extends cdk.Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
         },
         '/chat/*': {
-          origin: new origins.LoadBalancerV2Origin(backendService.loadBalancer, {
-            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-          }),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-          originRequestPolicy,
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        },
-        '/login': {
           origin: new origins.LoadBalancerV2Origin(backendService.loadBalancer, {
             protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
           }),

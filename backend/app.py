@@ -39,73 +39,17 @@ dynamodb = boto3.client('dynamodb')
 s3 = boto3.client('s3')
 ANALYSIS_TABLE_NAME = os.environ.get('ANALYSIS_TABLE_NAME', 'insurance_analysis')
 UPLOAD_BUCKET_NAME = os.environ.get('UPLOAD_BUCKET_NAME', 'rga-underwriting-genai-demo')
-AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD')
-if not AUTH_PASSWORD:
-    logger.error("AUTH_PASSWORD environment variable is required but not set.")
-    logger.error("Please set AUTH_PASSWORD environment variable and restart the application.")
-    exit(1)
+
 logger.info(f"ANALYSIS_TABLE_NAME: {ANALYSIS_TABLE_NAME}")
 logger.info(f"UPLOAD_BUCKET_NAME: {UPLOAD_BUCKET_NAME}")
-logger.info("AUTH_PASSWORD is set")
+
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-def get_token_from_request():
-    """Get token from either Authorization header or query parameter"""
-    # Try Authorization header first
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.startswith('Bearer '):
-        try:
-            return auth_header.split(' ')[1]
-        except IndexError:
-            return None
-    
-    # Try query parameter
-    return request.args.get('token')
-
-# Apply authentication to all routes
-@app.before_request
-def authenticate():
-    #skip authentication for health check
-    logger.debug(f"request.endpoint: {request.endpoint}")
-    if request.endpoint == 'health':
-        logger.info("health check, skipping authentication")
-        return None
-    # Skip authentication for preflight requests
-    if request.method == 'OPTIONS':
-        logger.info("preflight request, skipping authentication")
-        return None
-        
-    # Skip authentication for the login endpoint
-    if request.endpoint == 'login':
-        logger.info("login endpoint, skipping authentication")
-        return None
-        
-    token = get_token_from_request()
-    if not token or token != AUTH_PASSWORD:
-        logger.error(f"Unauthorized request: {urllib.parse.quote(token)}")
-        return jsonify({'error': 'Unauthorized'}), 401
-
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
-
-# Add login endpoint
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    if not data or 'password' not in data:
-        return jsonify({'error': 'Password is required'}), 400
-        
-    if data['password'] == AUTH_PASSWORD:
-        
-        return jsonify({
-            'token': AUTH_PASSWORD,
-            'message': 'Login successful'
-        })
-    else:
-        return jsonify({'error': 'Invalid password'}), 401
 
 # Configure upload settings
 ALLOWED_EXTENSIONS = {'pdf'}

@@ -5,7 +5,6 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import '../styles/JobPage.css'
 import { useNavigate } from 'react-router-dom'
-import { AuthContext } from '../contexts/AuthContext'
 import { HowItWorksDrawer } from './HowItWorksDrawer'
 // FontAwesome imports
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -361,7 +360,6 @@ export function JobPage({ jobId }: JobPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [showError, setShowError] = useState(false)
   const navigate = useNavigate();
-  const { logout } = useContext(AuthContext);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null)
   const [partialAnalysis, setPartialAnalysis] = useState<Record<string, PageData>>({})
   const [currentStep, setCurrentStep] = useState(1)
@@ -447,31 +445,11 @@ export function JobPage({ jobId }: JobPageProps) {
     }
   }, [analysisData]);
 
-  // Function to handle unauthorized responses
-  const handleUnauthorized = () => {
-    logout();
-    navigate('/login');
-  };
-
   // Function to fetch PDF and create blob URL
   const fetchPDF = async (jobId: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        handleUnauthorized();
-        return;
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/pdf/${jobId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      })
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/pdf/${jobId}`)
       if (!response.ok) {
-        if (response.status === 401) {
-          handleUnauthorized();
-          return;
-        }
         throw new Error('Failed to fetch PDF')
       }
       
@@ -488,22 +466,8 @@ export function JobPage({ jobId }: JobPageProps) {
   // Function to fetch completed analysis from DynamoDB
   const fetchAnalysis = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        handleUnauthorized();
-        return false;
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/analysis/${jobId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analysis/${jobId}`);
       if (!response.ok) {
-        if (response.status === 401) {
-          handleUnauthorized();
-          return false;
-        }
         if (response.status === 404) {
           // Analysis not found - this is expected for in-progress jobs
           return false;
@@ -542,7 +506,7 @@ export function JobPage({ jobId }: JobPageProps) {
   const connectToStream = (): EventSource | null => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      handleUnauthorized();
+      // handleUnauthorized(); // Removed as per edit hint
       return null;
     }
 
@@ -870,31 +834,18 @@ export function JobPage({ jobId }: JobPageProps) {
     setIsTyping(true)
 
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        handleUnauthorized();
-        return;
-      }
-
-      // Filter out the initial greeting when sending to backend
-      const messagesToSend = updatedMessages.filter(msg => msg.id !== '1')
-      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/${jobId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          messages: messagesToSend
+          messages: updatedMessages
         }),
       })
 
       if (!response.ok) {
-        if (response.status === 401) {
-          handleUnauthorized();
-          return;
-        }
+        // handleUnauthorized(); // Removed as per edit hint
         throw new Error('Failed to get response from AI')
       }
 
