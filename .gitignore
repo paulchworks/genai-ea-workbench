@@ -11,4 +11,5 @@ frontend/build
 node_modules
 .cursor/
 .vscode/
+*.pyc
 
