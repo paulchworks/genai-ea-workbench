@@ -13,11 +13,7 @@ const copyPdfWorker = () => {
     buildStart: async () => {
       const workerSrc = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.min.js')
       const destPath = path.resolve(__dirname, 'public/pdf.worker.min.js')
-      try {
-        await fs.copy(workerSrc, destPath)
-      } catch (error) {
-        console.error('Error copying PDF worker:', error)
-      }
+      await fs.copy(workerSrc, destPath)
     }
   }
 }
