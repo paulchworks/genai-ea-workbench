@@ -80,7 +80,6 @@ interface AnalysisData {
   page_analysis: Record<string, PageData>;
   underwriter_analysis: UnderwriterAnalysis;
   status: string;
-  pdf_url: string | null;
   insurance_type?: 'life' | 'property_casualty';
 }
 
@@ -102,7 +101,9 @@ interface JobApiResponse {
   status: string;
   timestamp: string;
   insurance_type?: 'life' | 'property_casualty';
-  s3_presigned_url?: string;
+  extractedData?: Record<string, any>;
+  analysisOutput?: AnalysisOutput;
+  agentActionOutput?: AgentActionData;
   extracted_data?: {
     sections?: Array<{
       title: string;
@@ -129,6 +130,14 @@ interface AgentActionData {
   document_identifier: string;
   agent_action_confirmation: string;
   message: string;
+}
+
+interface AnalysisOutput {
+  identified_risks?: Array<{ risk_description: string; severity?: string; page_references?: number[] }>;
+  discrepancies?: Array<{ discrepancy_description: string; details: string; page_references?: number[] }>;
+  medical_timeline?: string;
+  property_assessment?: string;
+  final_recommendation?: string;
 }
 
 const markdownStyles: Record<string, CSSProperties> = {
@@ -267,7 +276,8 @@ export function JobPage({ jobId }: JobPageProps) {
   const [currentPage, setCurrentPageState] = useState<number>(1)
   const [activeTab, setActiveTab] = useState<TabType>('grouped')
   const [streamConnected, setStreamConnected] = useState(false)
-  const [pdfUrl, setPdfUrlState] = useState<string | null>(null)
+  const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null)
+  const [isFetchingPdfUrl, setIsFetchingPdfUrl] = useState<boolean>(false);
   const [pdfBlob, setPdfBlobState] = useState<Blob | null>(null)
   const [insuranceType, setInsuranceTypeState] = useState<'life' | 'property_casualty'>('life')
   const [documentType, setDocumentType] = useState<string | null>(null)
@@ -308,6 +318,27 @@ export function JobPage({ jobId }: JobPageProps) {
       .join(' ');
   };
 
+  const fetchDocumentUrl = useCallback(async () => {
+    if (pdfDownloadUrl) return; // Avoid re-fetching if we already have a URL
+
+    setIsFetchingPdfUrl(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/jobs/${jobId}/document-url`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch document URL');
+      }
+      const data = await response.json();
+      if (data.documentUrl) {
+        setPdfDownloadUrl(data.documentUrl);
+      }
+    } catch (error) {
+      console.error("Error fetching PDF URL:", error);
+      // Optionally set an error state here to show in the UI
+    } finally {
+      setIsFetchingPdfUrl(false);
+    }
+  }, [jobId, pdfDownloadUrl]); // Added pdfDownloadUrl to dependencies to prevent infinite loops from re-fetching
+
   const fetchJobDetailsAndUpdateState = useCallback(async (isPolling = false) => {
     if (!isPolling) {
       setIsLoadingJobDetails(true);
@@ -328,22 +359,6 @@ export function JobPage({ jobId }: JobPageProps) {
       }
 
       const jobApiData: JobApiResponse = await response.json();
-
-      // Update PDF URL from s3_presigned_url if available - only on initial load, not during polling
-      if (jobApiData.s3_presigned_url && !isPolling) {
-        if (currentPdfUrlRef.current !== jobApiData.s3_presigned_url) {
-          currentPdfUrlRef.current = jobApiData.s3_presigned_url;
-          setPdfUrlState(jobApiData.s3_presigned_url);
-          setPdfBlobState(null); // Clear any old blob if using a direct URL
-          sessionStorage.setItem(`pdf_${jobId}`, jobApiData.s3_presigned_url);
-          console.log("PDF URL updated from jobApiData.s3_presigned_url.");
-        }
-      } else if (!currentPdfUrlRef.current && !isPolling) {
-        // If no presigned URL in API response and pdfUrl is not yet set, 
-        // it means we are likely still waiting for the job to progress to a state where s3Key is available.
-        // The loading placeholder will show. No need to call a separate fetchPDF here.
-        console.log("s3_presigned_url not yet available in job details. PDF will load when available.");
-      }
 
       const pageAnalysisTransformed: Record<string, PageData> = {};
 
@@ -423,7 +438,11 @@ export function JobPage({ jobId }: JobPageProps) {
       }
 
       // Transform underwriter analysis data
-      let underwriterAnalysisTransformed: UnderwriterAnalysis;
+      let underwriterAnalysisTransformed: UnderwriterAnalysis = {
+        RISK_ASSESSMENT: "Not available.",
+        DISCREPANCIES: "Not available.",
+        FINAL_RECOMMENDATION: "Not available.",
+      };
       
       // First try to use directly provided analysisOutput
       if (jobApiData.analysisOutput) {
@@ -529,10 +548,11 @@ export function JobPage({ jobId }: JobPageProps) {
         page_analysis: pageAnalysisTransformed,
         underwriter_analysis: underwriterAnalysisTransformed,
         status: jobApiData.status,
-        pdf_url: jobApiData.s3_presigned_url || null,
         insurance_type: jobApiData.insurance_type,
       };
       setAnalysisData(newAnalysisData);
+
+      fetchDocumentUrl(); // Always fetch the document URL after job data is received
 
       // ADDED - Store document type from API response
       if (jobApiData.documentType) {
@@ -636,11 +656,9 @@ export function JobPage({ jobId }: JobPageProps) {
         setIsLoadingJobDetails(false);
       }
     }
-  }, [jobId]);
+  }, [jobId, fetchDocumentUrl]);
 
   useEffect(() => {
-    // Initialize the PDF URL ref
-    currentPdfUrlRef.current = pdfUrl;
     
     fetchJobDetailsAndUpdateState();
 
@@ -739,7 +757,7 @@ export function JobPage({ jobId }: JobPageProps) {
               >
                 <div className="group-title">
                   <FontAwesomeIcon icon={getDocumentIcon(groupTitle)} />
-                  {groupTitle} ({groupPages.length} {groupPages.length === 1 ? 'item' : 'items'})
+                  Page {groupTitle} 
                 </div>
                 <FontAwesomeIcon icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight} />
               </button>
@@ -826,7 +844,7 @@ export function JobPage({ jobId }: JobPageProps) {
     setMessages(updatedMessages); setNewMessage(''); setIsTyping(true);
     try {
       const messagesToSend = updatedMessages.filter(msg => msg.id !== '1');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/${jobId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/${jobId}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: messagesToSend })
       });
@@ -987,7 +1005,19 @@ export function JobPage({ jobId }: JobPageProps) {
                 style={{ display: 'flex', flexGrow: 1, height: 'calc(100vh - 200px)' }}
               >
                 <div className={`pdf-viewer ${!isAnalysisPanelOpen ? 'expanded' : ''}`}>
-          {pdfUrl ? (
+          {isFetchingPdfUrl && (
+            <div className="loading-overlay">
+              <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+              <p>Loading Document...</p>
+            </div>
+          )}
+          {!pdfDownloadUrl && !isFetchingPdfUrl && (
+            <div className="pdf-placeholder">
+              <FontAwesomeIcon icon={faFileAlt} size="3x" className="placeholder-icon" />
+              <p className="placeholder-text">PDF document will appear here once analysis is complete.</p>
+            </div>
+          )}
+          {pdfDownloadUrl && (
                     <>
                       <div className="pdf-controls pdf-controls-absolute">
                           <button onClick={() => setCurrentPageState(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>
@@ -1007,10 +1037,10 @@ export function JobPage({ jobId }: JobPageProps) {
                               </button>
                           </div>
                            <button onClick={() => fetchJobDetailsAndUpdateState()} title="Refresh Data"><FontAwesomeIcon icon={faSyncAlt} /></button>
-                           {pdfUrl && (<button onClick={() => { if (pdfBlob) { const url = URL.createObjectURL(pdfBlob); window.open(url)?.print(); } else if (pdfUrl) { window.open(pdfUrl)?.print(); } }} title="Print PDF"><FontAwesomeIcon icon={faPrint} /></button>)}
+                           {pdfDownloadUrl && (<button onClick={() => { if (pdfBlob) { const url = URL.createObjectURL(pdfBlob); window.open(url)?.print(); } else if (pdfDownloadUrl) { window.open(pdfDownloadUrl)?.print(); } }} title="Print PDF"><FontAwesomeIcon icon={faPrint} /></button>)}
                       </div>
               <Document
-                file={pdfUrl}
+                file={pdfDownloadUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
                         loading={<div className="pdf-loading">Loading PDF...</div>}
                         error={<div className="pdf-loading">Error loading PDF.</div>}
@@ -1026,11 +1056,6 @@ export function JobPage({ jobId }: JobPageProps) {
                         </div>
               </Document>
                     </>
-          ) : (
-            <div className="pdf-placeholder">
-                        <FontAwesomeIcon icon={faSpinner} spin size="3x"/> <p>Loading PDF preview...</p>
-                        {analysisData?.status === "UPLOAD_PENDING" && <p>Document is pending upload finalization.</p>}
-            </div>
           )}
         </div>
 

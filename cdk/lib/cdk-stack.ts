@@ -348,6 +348,7 @@ export class CdkStack extends cdk.Stack {
     // Jobs resources
     const jobsResource = apiResource.addResource('jobs');
     const jobByIdResource = jobsResource.addResource('{jobId}');
+    const documentUrlResource = jobByIdResource.addResource('document-url');
     
     // Chat resources
     const chatResource = apiResource.addResource('chat');
@@ -360,6 +361,7 @@ export class CdkStack extends cdk.Stack {
     // Jobs and upload endpoints
     jobsResource.addMethod('GET', apiHandlerIntegration);
     jobByIdResource.addMethod('GET', apiHandlerIntegration);
+    documentUrlResource.addMethod('GET', apiHandlerIntegration);
     uploadResource.addMethod('POST', apiHandlerIntegration);
     statusResource.addMethod('GET', apiHandlerIntegration);
     chatByJobIdResource.addMethod('POST', chatLambdaIntegration);

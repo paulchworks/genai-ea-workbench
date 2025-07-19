@@ -66,6 +66,23 @@ def lambda_handler(event, context):
                 'body': json.dumps(response)
             }
             
+        elif http_method == 'GET' and resource == '/api/jobs/{jobId}/document-url':
+            # Get presigned URL for a document
+            job_id = path_parameters.get('jobId')
+            if not job_id:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Missing jobId parameter'})
+                }
+            
+            response = get_document_presigned_url(job_id)
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(response)
+            }
+            
         elif http_method == 'POST' and resource == '/api/documents/upload':
             # Generate presigned URL for document upload
             response = generate_upload_url(event)
@@ -171,33 +188,58 @@ def get_job(job_id):
             except:
                 job['agentActionOutput'] = {}
         
-        # Generate a presigned URL for viewing the document
-        if job['s3Key']:
-            try:
-                job['documentUrl'] = s3.generate_presigned_url(
-                    'get_object',
-                    Params={
-                        'Bucket': DOCUMENT_BUCKET,
-                        'Key': job['s3Key']
-                    },
-                    ExpiresIn=3600  # URL valid for 1 hour
-                )
-            except Exception as e:
-                print(f"Error generating presigned URL for document: {str(e)}")
-                job['documentUrl'] = ''
-                
         return job
     
     except Exception as e:
         print(f"Error getting job {job_id}: {str(e)}")
         raise
 
+def get_document_presigned_url(job_id):
+    """Generate a presigned URL for a document associated with a job"""
+    try:
+        # Get the job details to find the S3 key
+        response = dynamodb.get_item(
+            TableName=JOBS_TABLE_NAME,
+            Key={'jobId': {'S': job_id}},
+            ProjectionExpression='s3Key'
+        )
+        
+        if 'Item' not in response:
+            return {'error': f'Job {job_id} not found'}
+        
+        item = response['Item']
+        s3_key = item.get('s3Key', {}).get('S')
+        
+        if not s3_key:
+            return {'error': f'No document found for job {job_id}'}
+
+        # Generate a presigned URL for viewing the document
+        presigned_url = s3.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': DOCUMENT_BUCKET,
+                'Key': s3_key
+            },
+            ExpiresIn=3600  # URL valid for 1 hour
+        )
+        
+        return {'documentUrl': presigned_url}
+
+    except Exception as e:
+        print(f"Error generating presigned URL for job {job_id}: {str(e)}")
+        raise
+
 def generate_upload_url(event):
     """Generate a presigned URL for document upload and create initial job record"""
     try:
-        # Parse request body for filename
+        # Parse request body for filename and insurance type
         body = json.loads(event.get('body', '{}'))
         filename = body.get('filename')
+        insurance_type = body.get('insuranceType', 'property_casualty')  # Default to P&C if not specified
+        
+        # Validate insurance type
+        if insurance_type not in ['life', 'property_casualty']:
+            insurance_type = 'property_casualty'  # Default to P&C if invalid
         
         if not filename:
             return {'error': 'Missing filename in request'}
@@ -228,7 +270,8 @@ def generate_upload_url(event):
                 'status': {'S': 'CREATED'},
                 'uploadTimestamp': {'S': timestamp_now},
                 'originalFilename': {'S': filename},
-                's3Key': {'S': s3_key}
+                's3Key': {'S': s3_key},
+                'insuranceType': {'S': insurance_type}
             }
         )
         
@@ -237,6 +280,7 @@ def generate_upload_url(event):
             'uploadUrl': presigned_url,
             's3Key': s3_key,
             'status': 'CREATED',
+            'insuranceType': insurance_type,
             'message': 'Upload URL generated successfully'
         }
     

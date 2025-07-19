@@ -21,15 +21,6 @@ except Exception as e:
 
 print(f"ActLambda initializing. Target S3 Bucket for outputs: {MOCK_OUTPUT_S3_BUCKET}. Jobs Table: {JOBS_TABLE_NAME_ENV}")
 
-# --- AWS SDK Clients --- 
-try:
-    s3_client = boto3.client('s3')
-except Exception as e:
-    print(f"Error initializing Boto3 S3 client: {e}")
-    s3_client = None
-
-print(f"ActLambda initializing. Target S3 Bucket for outputs: {MOCK_OUTPUT_S3_BUCKET}")
-
 # --- Step 1: Define Agent Tools ---
 @tool
 def send_ineligibility_notice_tool(document_identifier: str, reason_for_ineligibility: str) -> str:
@@ -115,6 +106,7 @@ def request_supporting_documents_tool(document_identifier: str, recipient_email:
 
 # --- Step 2: Configure Strands Agent (System Prompt & Initialization) ---
 SUPPORTING_DOCUMENTS_MAP = {
+    # Property & Casualty documents
     "COMMERCIAL_PROPERTY_APPLICATION": [
         "Proof of Ownership",
         "Latest Audited Financial Statements (past 2 years)",
@@ -126,46 +118,109 @@ SUPPORTING_DOCUMENTS_MAP = {
         "Prior Claims History Report (5 years)",
         "Safety Program Manual/Overview"
     ],
+    "ACORD_FORM": [
+        "Completed ACORD Forms (all sections)",
+        "Property Valuation Documentation",
+        "Loss Run Reports (3 years)",
+        "Business Continuity Plan"
+    ],
+    # Life insurance documents
+    "LIFE_INSURANCE_APPLICATION": [
+        "Valid Government ID",
+        "Medical Records Release Form",
+        "Recent Physical Exam Results (within 12 months)",
+        "Financial Justification for Coverage Amount",
+        "Blood Test and Urinalysis Results (if not completed)"
+    ],
+    "MEDICAL_REPORT": [
+        "Complete Medical History for the Past 5 Years",
+        "Specialist Consultation Notes",
+        "Current Medication List",
+        "Recent Lab Test Results"
+    ],
+    "ATTENDING_PHYSICIAN_STATEMENT": [
+        "Additional Medical Records",
+        "Specialist Reports Referenced in APS",
+        "Treatment Plan Documentation",
+        "Follow-up Appointment Schedule"
+    ],
+    "LAB_REPORT": [
+        "Previous Lab Results for Comparison",
+        "Physician's Interpretation of Results",
+        "Prescription Records Related to Conditions"
+    ],
     "DEFAULT_APP_TYPE": [
         "Valid Government-Issued Identification Document",
         "Proof of Address (e.g., utility bill)"
     ]
 }
 
+# Create document strings for prompt formatting
 docs_comm_prop_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["COMMERCIAL_PROPERTY_APPLICATION"])
 docs_gen_liab_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["GENERAL_LIABILITY_APP_V2"])
+docs_life_app_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["LIFE_INSURANCE_APPLICATION"])
+docs_medical_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["MEDICAL_REPORT"])
 docs_default_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["DEFAULT_APP_TYPE"])
 
-AGENT_SYSTEM_PROMPT = f"""
-You are an AI Underwriting Assistant responsible for initial application triage. 
+# --- Step 2: Initialize Reusable Model Client ---
+# The model client is static and can be reused across invocations.
+try:
+    model = BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+    print("BedrockModel initialized successfully.")
+except Exception as e:
+    print(f"CRITICAL: Error initializing BedrockModel: {e}")
+    model = None # Set model to None if initialization fails
+
+def get_agent_system_prompt(insurance_type):
+    """Get the appropriate agent system prompt based on insurance type"""
+    
+    # Define common parts of the prompt
+    common_intro = """You are an AI Underwriting Assistant responsible for initial application triage. 
 Your task is to review an insurance application's extracted data (the user message will provide a 'document_identifier' and the application data) and decide on an appropriate action using ONE of the available tools.
 
 Available Tools:
 1.  `send_ineligibility_notice_tool`: Use this if the application is clearly ineligible based on the rules below.
-2.  `request_supporting_documents_tool`: Use this if the application is NOT ineligible, to request necessary supporting documents.
-
-**Ineligibility Rules (Strict - check these first. If any rule matches, the application is ineligible):**
+2.  `request_supporting_documents_tool`: Use this if the application is NOT ineligible, to request necessary supporting documents."""
+    
+    # Insurance-type specific rules
+    if insurance_type == "life":
+        ineligibility_rules = """**Ineligibility Rules (Strict - check these first. If any rule matches, the application is ineligible):**
+-   For application type "LIFE_INSURANCE_APPLICATION":
+    -   If the applicant has any history of cancer diagnosed within the last 3 years, they are INELIGIBLE. State 'recent cancer diagnosis' as the reason for ineligibility.
+    -   If the applicant's current age is over 85, they are INELIGIBLE. State 'age exceeds maximum limit' as the reason for ineligibility.
+    -   If the applicant has a history of heart attack or stroke within the last 12 months, they are INELIGIBLE. State 'recent cardiac/stroke event' as the reason for ineligibility.
+-   For any application type:
+    -   If `applicant_details.sanctioned_entity_status` is "Positive" or "MatchFound", it is INELIGIBLE. State 'sanctioned entity match' as the reason for ineligibility.
+    -   If an `application_details.requested_policy_start_date` is provided and it is in the past, it is INELIGIBLE. State 'past policy start date' as the reason for ineligibility."""
+    else:  # property_casualty
+        ineligibility_rules = """**Ineligibility Rules (Strict - check these first. If any rule matches, the application is ineligible):**
 -   For application type "COMMERCIAL_PROPERTY_APPLICATION":
     -   If `business_details.business_type` is "Nightclub" or "Explosives Manufacturing", it is INELIGIBLE. State this specific business type as the reason for ineligibility.
     -   If `location_details.construction_type` is "Wood Frame" AND `location_details.wildfire_risk_zone` is "High" or "Extreme", it is INELIGIBLE. State this combination (construction and high/extreme wildfire risk) as the reason for ineligibility.
 -   For any application type:
     -   If `applicant_details.sanctioned_entity_status` is "Positive" or "MatchFound", it is INELIGIBLE. State 'sanctioned entity match' as the reason for ineligibility.
     -   If data from a crime report is available (e.g., in `extracted_data.crime_report_data`) and `crime_report_data.property_crime_grade` is "F", it is INELIGIBLE. State 'Property Crime Grade is F' as the reason for ineligibility.
-    -   If an `application_details.requested_policy_start_date` is provided and it is in the past, it is INELIGIBLE. State 'past policy start date' as the reason for ineligibility.
-
-If an application is ineligible:
-- You MUST use the `send_ineligibility_notice_tool`.
-- Provide a clear `reason_for_ineligibility` based *only* on the specific rule that was violated.
-- Ensure the `document_identifier` (from the user message) is passed to the tool.
-
-**Supporting Document Request (Use ONLY if NOT Ineligible):**
+    -   If an `application_details.requested_policy_start_date` is provided and it is in the past, it is INELIGIBLE. State 'past policy start date' as the reason for ineligibility."""
+    
+    # Supporting document request instructions
+    supporting_docs_section = """**Supporting Document Request (Use ONLY if NOT Ineligible):**
 If none of the ineligibility rules are met, you MUST use the `request_supporting_documents_tool`.
 1.  Identify the `application_type` from the input.
-2.  Determine the list of required supporting documents based on this `application_type`. The mapping is:
+2.  Determine the list of required supporting documents based on this `application_type`. The mapping is:"""
+    
+    # Add the appropriate document lists based on insurance type
+    if insurance_type == "life":
+        docs_map = f"""
+    -   For "LIFE_INSURANCE_APPLICATION", request: {docs_life_app_str}
+    -   For "MEDICAL_REPORT", request: {docs_medical_str}
+    -   For any other `application_type`, use this default list: {docs_default_str}"""
+    else:  # property_casualty
+        docs_map = f"""
     -   For "COMMERCIAL_PROPERTY_APPLICATION", request: {docs_comm_prop_str}
     -   For "GENERAL_LIABILITY_APP_V2", request: {docs_gen_liab_str}
-    -   For any other `application_type`, use this default list: {docs_default_str}
-3.  Set `recipient_email` to the `applicant_details.email` from the extracted data if available; otherwise, use "underwriting-dept@example.com".
+    -   For any other `application_type`, use this default list: {docs_default_str}"""
+    
+    email_instructions = """3.  Set `recipient_email` to the `applicant_details.email` from the extracted data if available; otherwise, use "underwriting-dept@example.com".
 4.  You MUST draft a polite and professional `email_body`. 
     - Start with a greeting (e.g., "Dear Applicant,").
     - State that the application (mentioning the `document_identifier`) has been received and requires the listed additional documents to proceed with the review.
@@ -174,27 +229,10 @@ If none of the ineligibility rules are met, you MUST use the `request_supporting
 5.  Ensure the `document_identifier` (from the user message) and all other required arguments are passed to the `request_supporting_documents_tool`.
 
 Always choose exactly one tool. Do not ask clarifying questions. Make your decision based solely on the rules and data provided in the user message.
-The user message will contain the `document_identifier` and the extracted application data.
-"""
-
-uw_agent = None
-
-
-try:
-    # Define the Bedrock model to use, as requested
-    model = BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0")
-
-    uw_agent = Agent(
-        system_prompt=AGENT_SYSTEM_PROMPT,
-        tools=[
-            send_ineligibility_notice_tool,
-            request_supporting_documents_tool
-        ],
-        model=model # Use the specified model
-    )
-    print("Strands Agent initialized successfully.")
-except Exception as e:
-    print(f"CRITICAL: Error initializing Strands Agent: {e}")
+The user message will contain the `document_identifier` and the extracted application data."""
+    
+    # Combine all sections to create the final prompt
+    return common_intro + "\n\n" + ineligibility_rules + "\n\nIf an application is ineligible:\n- You MUST use the `send_ineligibility_notice_tool`.\n- Provide a clear `reason_for_ineligibility` based *only* on the specific rule that was violated.\n- Ensure the `document_identifier` (from the user message) is passed to the tool.\n\n" + supporting_docs_section + docs_map + "\n\n" + email_instructions
 
 # --- Step 3: Implement Lambda Handler ---
 def lambda_handler(event, context):
@@ -206,9 +244,9 @@ def lambda_handler(event, context):
     if not MOCK_OUTPUT_S3_BUCKET:
         print("CRITICAL: MOCK_OUTPUT_S3_BUCKET env var not set or empty.")
         return {"statusCode": 500, "body": json.dumps({"error": "MOCK_OUTPUT_S3_BUCKET env var not set."})}
-    if not uw_agent:
-        print("CRITICAL: Strands Agent (uw_agent) not initialized.")
-        return {"statusCode": 500, "body": json.dumps({"error": "Strands Agent not initialized."})}
+    if not model:
+        print("CRITICAL: BedrockModel (model) not initialized.")
+        return {"statusCode": 500, "body": json.dumps({"error": "BedrockModel not initialized."})}
 
     try:
         s3_object_key = event.get('detail', {}).get('object', {}).get('key')
@@ -220,6 +258,13 @@ def lambda_handler(event, context):
         
         document_identifier = s3_object_key 
         job_id = event.get('classification').get('jobId')
+        insurance_type = event.get('classification').get('insuranceType')
+        document_type = event.get('classification').get('classification')
+        extracted_data = event.get('extraction', {}).get('data')
+        print(f"Job ID: {job_id}")
+        print(f"Document type: {document_type}")
+        print(f"Insurance type: {insurance_type}")
+        print(f"Insurance type from event: {insurance_type}")
 
         # --- Update DynamoDB status to ACTING ---
         if job_id and JOBS_TABLE_NAME_ENV:
@@ -241,21 +286,17 @@ def lambda_handler(event, context):
                 print(f"Updated job {job_id} status to ACTING")
             except Exception as ddb_e:
                 print(f"Error updating DynamoDB status for job {job_id}: {str(ddb_e)}")
-        extraction_details = event.get('extraction')
+        
 
-        if not extraction_details or not isinstance(extraction_details, dict):
-            print(f"ERROR: Missing or invalid 'extraction' details in the event for {document_identifier}.")
-            return {"statusCode": 400, "body": json.dumps({"error": "Missing or invalid 'extraction' details in event"})}
-
-        document_type = extraction_details.get('document_type')
-        extracted_data = extraction_details.get('data')
 
         if not document_type or not isinstance(document_type, str):
-            print(f"ERROR: Missing or invalid 'document_type' within 'extraction' for {document_identifier}.")
-            return {"statusCode": 400, "body": json.dumps({"error": "Missing or invalid 'document_type' in extraction details"})}
+            print(f"ERROR: Missing or invalid 'document_type' within 'classification' for {document_identifier}.")
+            return {"statusCode": 400, "body": json.dumps({"error": "Missing or invalid 'document_type' in classification details"})}
         if not extracted_data or not isinstance(extracted_data, dict):
-            print(f"ERROR: Missing or invalid 'data' within 'extraction' for {document_identifier}.")
-            return {"statusCode": 400, "body": json.dumps({"error": "Missing or invalid 'data' in extraction details"})}
+            print(f"ERROR: Missing or invalid 'data' within 'extraction' for {document_identifier}. This might be expected if no extraction occurred yet.")
+            # We'll allow missing extraction data for now and handle it gracefully.
+            extracted_data = {}
+            # return {"statusCode": 400, "body": json.dumps({"error": "Missing or invalid 'data' in extraction details"})}
         
         print(f"Processing Document Identifier: {document_identifier}, Document Type: {document_type}")
 
@@ -267,7 +308,21 @@ def lambda_handler(event, context):
         )
         
         print(f"Sending message to agent for {document_identifier}...")
-
+        
+        # Get the appropriate agent system prompt based on insurance type
+        agent_system_prompt = get_agent_system_prompt(insurance_type)
+        
+        # Initialize the agent with the insurance-type specific prompt
+        # The agent is created here because its system_prompt depends on the event payload.
+        uw_agent = Agent(
+            system_prompt=agent_system_prompt,
+            tools=[
+                send_ineligibility_notice_tool,
+                request_supporting_documents_tool
+            ],
+            model=model # Use the globally initialized model
+        )
+        
         agent_response = uw_agent(agent_input_message)
 
         print(f"Agent response for {document_identifier}: {str(agent_response)}")

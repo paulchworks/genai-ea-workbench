@@ -79,9 +79,13 @@ def lambda_handler(event, context):
             if extraction_result.get('status') != 'SUCCESS':
                 raise ValueError(f"Previous extraction step failed: {extraction_result.get('message', 'Unknown error')}")
 
-            document_type = extraction_result.get('document_type')
             extracted_data = extraction_result.get('data')
             job_id = event.get('classification').get('jobId')
+            insurance_type = event.get('classification').get('insuranceType')
+            document_type = event.get('classification').get('classification')
+            print(f"Job ID: {job_id}")
+            print(f"Document type: {document_type}")
+            print(f"Insurance type: {insurance_type}")
 
             if not document_type or not extracted_data:
                 raise ValueError("Missing 'document_type' or 'data' in extraction result")
@@ -230,6 +234,7 @@ def lambda_handler(event, context):
 
         analysis_output["analysis_data"] = parsed_analysis_data
         analysis_output["status"] = "SUCCESS"
+        analysis_output["insurance_type"] = insurance_type
         print("Successfully processed and validated analysis data.")
 
         # --- Step 5: Update DynamoDB --- ADDED BLOCK

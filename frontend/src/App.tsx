@@ -60,7 +60,8 @@ function UploadPage() {
         },
         body: JSON.stringify({
           filename: file.name,
-          contentType: file.type // Send file's content type
+          contentType: file.type, // Send file's content type
+          insuranceType: insuranceType // Send insurance type to backend
         }),
       })
 
@@ -162,8 +163,8 @@ function UploadPage() {
         </h2>
         <p className="intro-text">
           {insuranceType === 'life' 
-            ? <span dangerouslySetInnerHTML={{ __html: 'Transform complex life insurance applications and medical documents into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>Claude 3.5 Sonnet</strong>. Purpose-built for life insurance underwriters to automatically extract, analyze, and evaluate risk factors from application packets.' }} />
-            : <span dangerouslySetInnerHTML={{ __html: 'Transform complex property & casualty insurance applications and ACORD forms into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>Claude 3.5 Sonnet</strong>. Purpose-built for P&C insurance underwriters to automatically extract, analyze, and evaluate property risk factors from application packets.' }} />}
+            ? <span dangerouslySetInnerHTML={{ __html: 'Transform complex life insurance applications and medical documents into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>7 Sonnet</strong>. Purpose-built for life insurance underwriters to automatically extract, analyze, and evaluate risk factors from application packets.' }} />
+            : <span dangerouslySetInnerHTML={{ __html: 'Transform complex property & casualty insurance applications and ACORD forms into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>Claude 3.7 Sonnet</strong>. Purpose-built for P&C insurance underwriters to automatically extract, analyze, and evaluate property risk factors from application packets.' }} />}
         </p>
         
         <div className="features-grid">
