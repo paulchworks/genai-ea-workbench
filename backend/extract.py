@@ -30,12 +30,11 @@ if not logger.handlers:
     # Add ch to logger
     logger.addHandler(ch)
 
-GOOD_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-FAST_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
-REGION = "us-west-2"
+GOOD_MODEL_ID = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+FAST_MODEL_ID = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 BATCH_SIZE = 3
 config = Config(retries={'max_attempts': 10, 'mode': 'adaptive'})
-BEDROCK_CLIENT = boto3.client("bedrock-runtime", REGION, config=config)
+BEDROCK_CLIENT = boto3.client("bedrock-runtime", config=config)
 
 def analyze_document(pdf_path, batch_size=BATCH_SIZE, page_limit=None, progress_callback=None, insurance_type='life'):
     """
@@ -68,133 +67,139 @@ def analyze_document(pdf_path, batch_size=BATCH_SIZE, page_limit=None, progress_
     page_idx = 0
 
     while page_idx < total_pages:
-        current_batch_pages = {}
-        if progress_callback:
-            yield from progress_callback(
-                f"Processing pages {page_idx+1} to {min(page_idx+batch_size, total_pages)} ..."
-            )
-        
-        batch = image_data_list[page_idx:page_idx + batch_size]
-        batch_page_nums = range(page_idx + 1, page_idx + 1 + len(batch))
-        
-        # Get the appropriate prompt based on insurance type
-        prompt_base = get_page_analysis_prompt(insurance_type)
-        
-        # Format the prompt with page numbers and add the output example
-        formatted_prompt = f"""You are an underwriter analyzing pages {list(batch_page_nums)} from a pdf containing an insurance application.
-{prompt_base}
-
-Output example:
-<output page="1">
-    <page_type>Pharmacy Report-Continued</page_type>
-    <page_content>
-        - Date Submitted: 12/29/2020)
-        - Gender: Male
-        - Risk Score: 2.650
-        - Medications:
-            - Prescription by Oncologist (#380)
-            - Anti-Convulsant with multiple uses (#354)
-        - Multiple prescription benefit periods from 01/01/2003 through 12/31/2039
-    </page_content>
-</output>
-Here come the images:"""
-        logger.info(f"Prompt: {formatted_prompt}")
-
-        user_content = [
-            {
-                "text": formatted_prompt
-            }
-        ]
-        
-        for pg_num, img_bytes in zip(batch_page_nums, batch):
-            user_content.append({"text": f"Page {pg_num}:"})
-            user_content.append({
-                "image": {
-                    "format": "png",
-                    "source": {"bytes": img_bytes}
-                }
-            })
-
-        # Start with only a user message
-        messages = [{"role": "user", "content": user_content}]
-
-        assistant_accumulated = ""
-        stop_reason = "max_tokens"
-
-        # Keep calling while we get partial output
-        while stop_reason == "max_tokens":
             try:
-                response = BEDROCK_CLIENT.converse(
-                    modelId=GOOD_MODEL_ID,
-                    messages=messages,
-                    inferenceConfig={
-                        "maxTokens": 2048,
-                        "temperature": 0.0,
-                        "topP": 0.9
+                current_batch_pages = {}
+                if progress_callback:
+                    yield from progress_callback(
+                        f"Processing pages {page_idx+1} to {min(page_idx+batch_size, total_pages)} ..."
+                    )
+                
+                batch = image_data_list[page_idx:page_idx + batch_size]
+                batch_page_nums = range(page_idx + 1, page_idx + 1 + len(batch))
+                
+                # Get the appropriate prompt based on insurance type
+                prompt_base = get_page_analysis_prompt(insurance_type)
+                
+                # Format the prompt with page numbers and add the output example
+                # IMPORTANT: Fixed closing tag to be </output> instead of </o> for consistency
+                formatted_prompt = f"""You are an underwriter analyzing pages {list(batch_page_nums)} from a pdf containing an insurance application.
+        {prompt_base}
+
+        Output example:
+        <output page="1">
+            <page_type>Pharmacy Report-Continued</page_type>
+            <page_content>
+                - Date Submitted: 12/29/2020)
+                - Gender: Male
+                - Risk Score: 2.650
+                - Medications:
+                    - Prescription by Oncologist (#380)
+                    - Anti-Convulsant with multiple uses (#354)
+                - Multiple prescription benefit periods from 01/01/2003 through 12/31/2039
+            </page_content>
+        </output>
+        Here come the images:"""
+                logger.info(f"Prompt: {formatted_prompt}")
+
+                user_content = [
+                    {
+                        "text": formatted_prompt
                     }
-                )
-            except ClientError as e:
-                print("Error from Bedrock: ", e)
-                break
-
-            stop_reason = response["stopReason"]
-            chunk_list = response["output"]["message"]["content"]
-            if chunk_list:
-                chunk_text = chunk_list[0]["text"]
-                print("\n=== New chunk received ===")
-                print(chunk_text)
-                print("=== End of chunk ===\n")
+                ]
                 
-                assistant_accumulated += chunk_text
-                
-                # Add assistant partial text
-                messages.append({
-                    "role": "assistant",
-                    "content": [{"text": chunk_text}]
-                })
-
-                # If we still need more tokens, add a user prompt to continue
-                if stop_reason == "max_tokens":
-                    print("Max tokens reached, requesting continuation...")
-                    messages.append({
-                        "role": "user",
-                        "content": [{"text": "Please continue from where you left off."}]
+                for pg_num, img_bytes in zip(batch_page_nums, batch):
+                    user_content.append({"text": f"Page {pg_num}:"})
+                    user_content.append({
+                        "image": {
+                            "format": "png",
+                            "source": {"bytes": img_bytes}
+                        }
                     })
 
-        # Now assistant_accumulated has the full batch output
-        full_text = assistant_accumulated
-        print("\n=== Full accumulated text ===")
-        print(full_text)
-        print("=== End of full text ===\n")
+                # Start with only a user message
+                messages = [{"role": "user", "content": user_content}]
 
-        # Parse the output using the new function
-        parsed_results, found_pages = parse_page_output(full_text)
-        results.update(parsed_results)
+                assistant_accumulated = ""
+                stop_reason = "max_tokens"
 
-        # For any page in the batch that didn't appear in output, store placeholder
-        for pg_num in batch_page_nums:
-            if pg_num not in found_pages:
-                print(f"Warning: No output found for page {pg_num} in batch {list(batch_page_nums)}")
-                results[pg_num] = {
-                    "page_type": "Unknown",
-                    "content": "No analysis found."
-                }
+                # Keep calling while we get partial output
+                while stop_reason == "max_tokens":
+                    try:
+                        response = BEDROCK_CLIENT.converse(
+                            modelId=GOOD_MODEL_ID,
+                            messages=messages,
+                            inferenceConfig={
+                                "maxTokens": 2048,
+                                "temperature": 0.0,
+                                "topP": 0.9
+                            }
+                        )
+                    except ClientError as e:
+                        print("Error from Bedrock: ", e)
+                        break
 
-        # After processing the batch, store results
-        current_batch_pages.clear()  # Ensure we start fresh
-        for pg_num in batch_page_nums:
-            if pg_num in results:
-                current_batch_pages[str(pg_num)] = results[pg_num]
-                print(f"Added page {pg_num} to current batch")
+                    stop_reason = response["stopReason"]
+                    chunk_list = response["output"]["message"]["content"]
+                    if chunk_list:
+                        chunk_text = chunk_list[0]["text"]
+                        print("\n=== New chunk received ===")
+                        print(chunk_text)
+                        print("=== End of chunk ===\n")
+                        
+                        assistant_accumulated += chunk_text
+                        
+                        # Add assistant partial text
+                        messages.append({
+                            "role": "assistant",
+                            "content": [{"text": chunk_text}]
+                        })
 
-        if progress_callback and current_batch_pages:
-            print(f"Sending batch update with {len(current_batch_pages)} pages: {list(current_batch_pages.keys())}")
-            yield from progress_callback(
-                f"Completed pages {page_idx+1} to {min(page_idx+batch_size, total_pages)}",
-                current_batch_pages
-            )
+                        # If we still need more tokens, add a user prompt to continue
+                        if stop_reason == "max_tokens":
+                            print("Max tokens reached, requesting continuation...")
+                            messages.append({
+                                "role": "user",
+                                "content": [{"text": "Please continue from where you left off."}]
+                            })
 
-        page_idx += batch_size
+                # Now assistant_accumulated has the full batch output
+                full_text = assistant_accumulated
+                print("\n=== Full accumulated text ===")
+                print(full_text)
+                print("=== End of full text ===\n")
+
+                # Parse the output using the new function
+                parsed_results, found_pages = parse_page_output(full_text)
+                results.update(parsed_results)
+
+                # For any page in the batch that didn't appear in output, store placeholder
+                for pg_num in batch_page_nums:
+                    if pg_num not in found_pages:
+                        print(f"Warning: No output found for page {pg_num} in batch {list(batch_page_nums)}")
+                        results[pg_num] = {
+                            "page_type": "Unknown",
+                            "content": "No analysis found."
+                        }
+
+                # After processing the batch, store results
+                current_batch_pages.clear()  # Ensure we start fresh
+                for pg_num in batch_page_nums:
+                    if pg_num in results:
+                        current_batch_pages[str(pg_num)] = results[pg_num]
+                        print(f"Added page {pg_num} to current batch")
+
+                if progress_callback and current_batch_pages:
+                    print(f"Sending batch update with {len(current_batch_pages)} pages: {list(current_batch_pages.keys())}")
+                    yield from progress_callback(
+                        f"Completed pages {page_idx+1} to {min(page_idx+batch_size, total_pages)}",
+                        current_batch_pages
+                    )
+
+                page_idx += batch_size
+            except Exception as e:
+                print(f"Error processing batch: {e}")
+                break
+                
 
     print("Final results:", results)
     return results

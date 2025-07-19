@@ -87,9 +87,6 @@ export class CdkStack extends cdk.Stack {
     // Create common IAM policy statements for Lambda functions
     const bedrockPolicyStatement = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      // must match a wildcard of this pattern: arn:aws:bedrock:us-east-1:543999415209:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0
-      // arn:aws:bedrock:us-east-1:543999415209:inference-profile/us.anthropic*
-      // do it here:
       resources: ['*'],
       actions: [
         'bedrock:InvokeModel',
