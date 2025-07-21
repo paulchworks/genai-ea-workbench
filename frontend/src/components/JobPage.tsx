@@ -4,8 +4,6 @@ import Split from 'react-split'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import '../styles/JobPage.css'
-import "react-pdf/dist/esm/Page/AnnotationLayer.css";
-import "react-pdf/dist/esm/Page/TextLayer.css";
 import { useNavigate } from 'react-router-dom'
 import { HowItWorksDrawer } from './HowItWorksDrawer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -24,7 +22,10 @@ import {
   faRobot, faEnvelope, faTimes
 } from '@fortawesome/free-solid-svg-icons'
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 // Define the props type for custom components, aligning with react-markdown
 interface MarkdownComponentProps {
