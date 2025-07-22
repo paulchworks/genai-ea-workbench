@@ -1,8 +1,6 @@
 # genai-underwriting-workbench-demo
 
-A demonstration project showcasing the power of Amazon Bedrock and advanced AI models like Claude 3.5 Sonnet in transforming life insurance underwriting workflows. This solution leverages intelligent document processing to streamline the underwriting process by automatically extracting, analyzing, and making accessible critical information from insurance applications and related documents.
-
-For a comprehensive guide on demonstrating this solution, including business value propositions, demo walkthroughs, and addressing common questions, please see our [Sales Field Guide](https://quip-amazon.com/QOblAkihQhCL/GenAI-Underwriting-Workbench-Field-Guide).
+A demonstration project showcasing the power of Amazon Bedrock and advanced AI models like Claude 3.7 Sonnet in transforming life insurance underwriting workflows. This solution leverages intelligent document processing to streamline the underwriting process by automatically extracting, analyzing, and making accessible critical information from insurance applications and related documents.
 
 ## Table of Contents
 - [Business Purpose](#business-purpose)
@@ -15,7 +13,6 @@ For a comprehensive guide on demonstrating this solution, including business val
   - [Bootstrap and Deploy the CDK Stack](#bootstrap-and-deploy-the-cdk-stack)
 - [Technical Overview](#technical-overview)
   - [Development Setup](#development-setup)
-  - [API Usage](#api-usage)
 
 # Business Purpose
 
@@ -36,7 +33,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Intelligent extraction of key data points from each page, enabling comprehensive analysis without token limitations
 - Automatic classification of document sections with useful bookmarks
 
-![dashboard screenshot](screen1.png)
+![dashboard screenshot](assets/screen1.png)
 
 ## Underwriter Analysis
 - AI-driven analysis of the document to detect discrepancies and extract underwriting-relevant insights
@@ -45,7 +42,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Highlighting of areas requiring additional review and cross-referencing of information across sections
 - Optional integration with customer's proprietary underwriting manuals for specialized insights
 
-![underwriter analysis screenshot](screen2.png)
+![underwriter analysis screenshot](assets/screen2.png)
 
 ## Chat Interface
 - Natural language chat interface for querying document contents
@@ -54,7 +51,7 @@ This demo addresses a key challenge in life insurance underwriting: the time-con
 - Quick navigation to relevant document sections using markdown links
 - Contextual understanding of underwriting terminology for detailed inquiries
 
-![underwriter analysis screenshot](screen3.png)
+![underwriter analysis screenshot](assets/screen3.png)
 
 # Deployment
 
@@ -91,8 +88,8 @@ The project is designed to be deployed on AWS using the AWS Cloud Development Ki
 
 ## Clone the repository and navigate to the project directory
 ```bash
-git clone https://gitlab.aws.dev/anhwell/genai-underwriting-workbench-demo/
-cd genai-underwriting-workbench-demo
+git clone https://github.com/aws-samples/sample-genai-underwriting-workbench-demo/
+cd sample-genai-underwriting-workbench-demo
 ```
 
 ## Bootstrap and Deploy the CDK Stack
@@ -109,14 +106,12 @@ cdk deploy
 ```
 
 This process will:
-- Create all necessary AWS resources (Fargate clusters, Load Balancers, DynamoDB tables, S3 buckets, etc.)
-- Create ECR repositories and push Docker images
+- Create all necessary AWS resources (Lambda functions, Load Balancers, DynamoDB tables, S3 buckets, etc.)
 - Deploy backend services and the frontend application
 - Output API endpoints and frontend URLs once complete
 
 **Note**: Ensure your AWS account has appropriate permissions to create and manage these resources, including:
-- ECR repository creation and push permissions
-- ECS/Fargate cluster management
+- Lambda function creation and management
 - DynamoDB table creation
 - S3 bucket management
 - IAM role and policy management
@@ -126,19 +121,27 @@ This process will:
 
 # Technical Overview
 
+
+
+## Demo Workflow
+
+This demo streamlines the underwriting process through a powerful AI-driven workflow, which can be broken down into four key stages:
+
+1.  **Classify**: Incoming documents are first classified to determine their type (e.g., application, medical report, financial statement). This ensures the correct processing path and relevant extraction models are applied.
+2.  **Extract**: Key information and data points are extracted from the classified documents. This includes details like applicant information, medical history, financial data, and other relevant underwriting criteria.
+3.  **Analyze**: The extracted data is then analyzed by advanced AI models to identify potential risks, discrepancies, and generate comprehensive underwriting insights. This stage highlights critical information and suggests recommendations.
+4.  **Act**: Underwriters can then interact with the analyzed data through a chat interface, review insights, and make informed decisions, leveraging the AI-generated analysis to accelerate their workflow.
+
+## Project Components
+
 The project consists of three main components:
 
-- **Backend**: A Flask-based API written in Python which:
-  - Accepts PDF uploads via the `/analyze` endpoint
-  - Converts PDF pages to images using `pdf2image`
-  - Processes documents in efficient batches to extract key information
-  - Maintains a structured representation of document contents for quick retrieval
-  - Leverages Amazon Bedrock and Anthropic's Claude models for:
-    - Detailed page-by-page analysis
-    - Extraction of underwriting-relevant data
-    - Generation of aggregated insights
-    - Interactive Q&A capabilities using extracted document context
-    - Optional knowledge base integration for specialized queries
+- **Backend**: A serverless backend built with AWS Lambda functions and orchestrated by AWS Step Functions. It leverages Amazon Bedrock and Anthropic's Claude models for intelligent document processing.
+  - **API Gateway (api-handler Lambda)**: Handles all API requests, including document uploads (via presigned S3 URLs), retrieving job statuses, and fetching analysis results.
+  - **Document Extraction (bedrock-extract Lambda)**: Triggered by new document uploads to S3. It converts PDF documents to images, extracts key-value information from each page using Amazon Bedrock's Claude 3 model, classifies pages, and stores the raw extracted data.
+  - **Document Analysis (analyze Lambda)**: Processes the extracted data from the `bedrock-extract` function. It uses Amazon Bedrock's Claude 3.5 Sonnet model to perform comprehensive underwriting analysis, identifying risks, discrepancies, and generating final recommendations.
+  - **Orchestration**: AWS Step Functions coordinate the flow between the document upload, extraction, and analysis steps, ensuring a robust and scalable workflow.
+  - **Data Storage**: DynamoDB is used to store job metadata, extracted data, and the final analysis results, while S3 is used for raw document storage.
 
 - **Frontend**: A React application (powered by Vite) that provides:
   - Document upload interface with progress tracking
@@ -181,26 +184,4 @@ For local development, follow these steps:
    npm install
    ```
 2. Start the development server:
-   ```bash
-   npm run dev
    ```
-3. Open [http://localhost:5174](http://localhost:5174) (or the port shown in your terminal) in your browser.
-
-## API Usage
-
-The backend provides an API endpoint for document analysis:
-
-**POST** `/analyze`
-- Request: multipart/form-data
-  - `file`: PDF document to analyze
-  - `batch_size` (optional, default: 3): Number of pages to process per batch
-  - `page_limit` (optional): Maximum number of pages to analyze
-
-Example:
-```bash
-curl -F "file=@/path/to/document.pdf" -F "batch_size=3" -F "page_limit=10" http://localhost:5000/analyze
-```
-
-Response includes:
-- `page_analysis`: Detailed per-page analysis
-- `underwriter_analysis`: Aggregated insights and key findings

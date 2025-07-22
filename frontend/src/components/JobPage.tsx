@@ -1,4 +1,4 @@
-import { useState, useEffect, CSSProperties, createContext, useContext } from 'react'
+import { useState, useEffect, CSSProperties, createContext, useContext, useRef, useCallback } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import Split from 'react-split'
 import ReactMarkdown from 'react-markdown'
@@ -6,68 +6,49 @@ import remarkGfm from 'remark-gfm'
 import '../styles/JobPage.css'
 import { useNavigate } from 'react-router-dom'
 import { HowItWorksDrawer } from './HowItWorksDrawer'
-// FontAwesome imports
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { 
-  faFileAlt, 
-  faFileContract, 
-  faComments, 
-  faChevronRight, 
-  faChevronLeft, 
-  faExpandAlt, 
-  faCompressAlt, 
-  faSearchPlus, 
-  faSearchMinus,
-  faInfoCircle,
-  faFileMedical,
-  faFileInvoiceDollar,
-  faIdCard,
-  faClipboardList,
-  faUpload,
-  faFileImage,
-  faCog,
-  faDatabase,
-  faCheckCircle,
-  faUserMd,
-  faPills,
-  faFlask,
-  faHeartbeat,
-  faVial,
-  faLungs,
-  faProcedures,
-  faXRay,
-  faStethoscope,
-  faNotesMedical,
-  faMicroscope,
-  faHospital,
-  faAllergies,
-  faTooth,
-  faEye,
-  faBriefcaseMedical,
-  faHistory,
-  // P&C insurance related icons
-  faHome,
-  faCar,
-  faBuilding,
-  faUmbrella,
-  faWater,
-  faFire,
-  faBalanceScale,
-  faExclamationTriangle,
-  faTruck,
-  faHardHat,
-  faIndustry,
-  faCloudShowersHeavy,
-  faWind,
-  faRoad,
-  faShieldAlt,
-  faGavel,
-  faList,
-  faClipboardCheck
+import {
+  faFileAlt, faFileContract, faComments, faChevronRight, faChevronLeft, 
+  faExpandAlt, faCompressAlt, faSearchPlus, faSearchMinus, faInfoCircle, 
+  faFileMedical, faFileInvoiceDollar, faIdCard, faClipboardList, faUpload, 
+  faFileImage, faCog, faDatabase, faCheckCircle, faUserMd, faPills, faFlask, 
+  faHeartbeat, faVial, faLungs, faProcedures, faXRay, faStethoscope, 
+  faNotesMedical, faMicroscope, faHospital, faAllergies, faTooth, faEye, 
+  faBriefcaseMedical, faHistory, faHome, faCar, faBuilding, faUmbrella, 
+  faWater, faFire, faBalanceScale, faExclamationTriangle, faTruck, 
+  faHardHat, faIndustry, faCloudShowersHeavy, faWind, faRoad, 
+  faShieldAlt, faGavel, faList, faClipboardCheck,
+  faSpinner, faHourglassHalf, faTimesCircle, faPrint, faSyncAlt,
+  faRobot, faEnvelope, faTimes
 } from '@fortawesome/free-solid-svg-icons'
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
+
+// Define the props type for custom components, aligning with react-markdown
+interface MarkdownComponentProps {
+  node?: any; // The hast node
+  children?: React.ReactNode;
+  // Include other props passed by react-markdown if necessary, e.g., level for headings
+  [key: string]: any; // Allow other props
+}
+
+const generateMarkdownComponents = (styles: Record<string, CSSProperties>): Record<string, React.FC<MarkdownComponentProps>> => {
+  const components: Record<string, React.FC<MarkdownComponentProps>> = {};
+  for (const cssClassOrTag in styles) {
+    const styleObject = styles[cssClassOrTag];
+    const tags = cssClassOrTag.split(',').map(tag => tag.trim());
+    tags.forEach(tagString => {
+      const Element = tagString as keyof JSX.IntrinsicElements;
+      components[Element] = ({ node, children, ...props }) => {
+        return <Element style={styleObject} {...props}>{children}</Element>;
+      };
+    });
+  }
+  return components;
+};
 
 interface PageAnalysis {
   [key: string]: string
@@ -76,16 +57,17 @@ interface PageAnalysis {
 interface UnderwriterAnalysis {
   RISK_ASSESSMENT: string
   DISCREPANCIES: string
-  MEDICAL_TIMELINE: string
+  MEDICAL_TIMELINE?: string
+  PROPERTY_ASSESSMENT?: string
   FINAL_RECOMMENDATION: string
 }
 
 interface PageData {
   page_type: string;
   content: string;
+  numeric_page_num_for_nav?: number;
 }
 
-// Add new interfaces for bookmarks
 interface Bookmark {
   title: string;
   startPage: number;
@@ -97,16 +79,9 @@ interface AnalysisData {
   timestamp: string;
   filename: string;
   page_analysis: Record<string, PageData>;
-  underwriter_analysis: Record<string, string>;
+  underwriter_analysis: UnderwriterAnalysis;
   status: string;
-  pdf_url: string | null;
-  insurance_type?: string;
-}
-
-interface AnalysisResponse extends Omit<AnalysisData, 'page_analysis' | 'underwriter_analysis' | 'pdf_url'> {
-  page_analysis?: Record<string, PageData>;
-  underwriter_analysis?: Record<string, string>;
-  pdf_url?: string | null;
+  insurance_type?: 'life' | 'property_casualty';
 }
 
 interface JobPageProps {
@@ -120,23 +95,66 @@ interface Message {
   timestamp: Date;
 }
 
-// Add styles for the markdown content
-const markdownStyles: Record<string, CSSProperties> = {
-  p: { margin: '0.5em 0' },
-  'h1,h2,h3,h4,h5,h6': { margin: '0.5em 0' },
-  pre: { background: '#f1f5f9', padding: '0.5em', borderRadius: '4px' },
-  code: { background: '#f1f5f9', padding: '0.2em 0.4em', borderRadius: '3px' },
-  table: { borderCollapse: 'collapse', width: '100%' },
-  'th,td': { border: '1px solid #e2e8f0', padding: '8px' },
-  blockquote: { 
-    borderLeft: '4px solid #e2e8f0', 
-    margin: '0.5em 0', 
-    padding: '0.5em 1em',
-    background: '#f8fafc'
-  }
+interface JobApiResponse {
+  jobId: string;
+  originalFilename: string;
+  documentType?: string;
+  status: string;
+  timestamp: string;
+  insurance_type?: 'life' | 'property_casualty';
+  extractedData?: Record<string, any>;
+  analysisOutput?: AnalysisOutput;
+  agentActionOutput?: AgentActionData;
+  extracted_data?: {
+    sections?: Array<{
+      title: string;
+      content: string;
+      start_page_number?: number;
+      findings?: Array<{ type: string; description: string; severity?: string; page_references?: number[]; }>;
+    }>;
+    key_value_pairs?: Record<string, string>;
+    tables?: Array<{ name: string; rows: Array<Record<string, string>> }>;
+  };
+  extractedDataJsonStr?: string;
+  analysisOutputJsonStr?: string;
+  agentActionOutputJsonStr?: string;
+  analysis_summary?: string;
+  identified_risks?: Array<{ description: string; severity?: string; page_references?: number[]; }>;
+  underwriting_recommendation?: string;
+  discrepancies_summary?: string;
+  medical_timeline_summary?: string;
+  property_assessment_summary?: string;
+  error_message?: string;
 }
 
-// Add this new component before the JobPage component
+interface AgentActionData {
+  document_identifier: string;
+  agent_action_confirmation: string;
+  message: string;
+}
+
+interface AnalysisOutput {
+  identified_risks?: Array<{ risk_description: string; severity?: string; page_references?: number[] }>;
+  discrepancies?: Array<{ discrepancy_description: string; details: string; page_references?: number[] }>;
+  medical_timeline?: string;
+  property_assessment?: string;
+  final_recommendation?: string;
+}
+
+const markdownStyles: Record<string, CSSProperties> = {
+  p: { margin: '0.5em 0' }, 'h1,h2,h3,h4,h5,h6': { margin: '0.5em 0' },
+  pre: { background: '#f1f5f9', padding: '0.5em', borderRadius: '4px', overflowX: 'auto' },
+  code: { background: '#f1f5f9', padding: '0.2em 0.4em', borderRadius: '3px', fontFamily: 'monospace' },
+  table: { borderCollapse: 'collapse', width: '100%', marginBlock: '1em' },
+  'th,td': { border: '1px solid #e2e8f0', padding: '8px', textAlign: 'left' },
+  blockquote: { borderLeft: '4px solid #e2e8f0', margin: '0.5em 0', padding: '0.5em 1em', background: '#f8fafc'}
+}
+
+// Generate the components object once from markdownStyles
+const customMarkdownComponentsFromStyles = generateMarkdownComponents(markdownStyles);
+
+type TabType = 'grouped' | 'underwriter' | 'chat';
+
 const PageReference = ({ pageNum, text }: { pageNum: string, text: string }) => {
   const [currentPage, setCurrentPage] = useContext(PageContext)
   const [numPages] = useContext(NumPagesContext)
@@ -156,222 +174,114 @@ const PageReference = ({ pageNum, text }: { pageNum: string, text: string }) => 
   )
 }
 
-// Add these contexts before the JobPage component
 const PageContext = createContext<[number, (page: number) => void]>([1, () => {}])
 const NumPagesContext = createContext<[number | null, (pages: number | null) => void]>([null, () => {}])
 
-// First, add a type for the tab options
-type TabType = 'grouped' | 'underwriter' | 'chat';
-
-// Add this function before the JobPage component
 const getDocumentIcon = (documentType: string) => {
-  // Match for medical types
-  if (/medic(al|ation)|(health|disease)/i.test(documentType)) {
-    return faFileMedical;
-  }
-  
-  // Match for medical history
-  if (/history|anamnesis/i.test(documentType)) {
-    return faHistory;
-  }
-  
-  // Match for pharmacy or medication
-  if (/pharmac(y|eutical)|medication|drug|prescription/i.test(documentType)) {
-    return faPills;
-  }
-  
-  // Match for laboratory or clinical tests
-  if (/lab(oratory)?|clinical|test|specimen/i.test(documentType)) {
-    return faFlask;
-  }
-  
-  // Match for doctor/physician
-  if (/physician|doctor|practitioner|clinician|md\b/i.test(documentType)) {
-    return faUserMd;
-  }
-  
-  // Match for examination/paramedical
-  if (/exam(ination)?|assessment|paramedical/i.test(documentType)) {
-    return faStethoscope;
-  }
-  
-  // Match for hospital/clinic
-  if (/hospital|clinic|center|facility|institution/i.test(documentType)) {
-    return faHospital;
-  }
-  
-  // Match for X-Ray/imaging
-  if (/x-ray|imaging|scan|radiolog(y|ical)|mri|ct scan/i.test(documentType)) {
-    return faXRay;
-  }
-  
-  // Match for surgical/procedure
-  if (/surg(ery|ical)|procedure|operation/i.test(documentType)) {
-    return faProcedures;
-  }
-  
-  // Match for cardiology
-  if (/cardio|heart|cardiac|pulse|ekg|ecg/i.test(documentType)) {
-    return faHeartbeat;
-  }
-  
-  // Match for pulmonary
-  if (/pulmonary|lung|respiratory|breath/i.test(documentType)) {
-    return faLungs;
-  }
-  
-  // Match for allergy
-  if (/allerg(y|ies)|immunolog(y|ical)/i.test(documentType)) {
-    return faAllergies;
-  }
-  
-  // Match for dental
-  if (/dental|dentist|tooth|teeth|oral/i.test(documentType)) {
-    return faTooth;
-  }
-  
-  // Match for ophthalmology
-  if (/eye|vision|ophthalm(ology|ologist)|optical/i.test(documentType)) {
-    return faEye;
-  }
-  
-  // Match for insurance/financial
-  if (/insurance|financial|coverage|policy|premium|underwriter/i.test(documentType)) {
-    return faFileInvoiceDollar;
-  }
-  
-  // Match for forms/questionnaires
-  if (/form|(question|survey)(naire)?|assessment/i.test(documentType)) {
-    return faClipboardList;
-  }
-  
-  // Match for detailed medical notes
-  if (/note|report|summary|record/i.test(documentType)) {
-    return faNotesMedical;
-  }
-  
-  // Match for microscopic/detailed analysis
-  if (/microscop(e|ic)|patholog(y|ical)|cytolog(y|ical)|histolog(y|ical)/i.test(documentType)) {
-    return faMicroscope;
-  }
-  
-  // Match for blood/specimen tests
-  if (/blood|hematolog(y|ical)|serum|plasma|specimen/i.test(documentType)) {
-    return faVial;
-  }
-  
-  // Match for emergency/urgent care
-  if (/emergency|urgent|trauma|ambulance|ems/i.test(documentType)) {
-    return faBriefcaseMedical;
-  }
-  
-  // Property & Casualty Insurance Documents
-  
-  // Match for home/property insurance
-  if (/home|property|dwelling|real estate|building|structure/i.test(documentType)) {
-    return faHome;
-  }
-  
-  // Match for auto insurance
-  if (/auto|car|vehicle|motorcycle|truck|collision/i.test(documentType)) {
-    return faCar;
-  }
-  
-  // Match for commercial property
-  if (/commercial|business property|office|warehouse|retail/i.test(documentType)) {
-    return faBuilding;
-  }
-  
-  // Match for umbrella/liability policies
-  if (/umbrella|liability|excess|protection/i.test(documentType)) {
-    return faUmbrella;
-  }
-  
-  // Match for flood insurance
-  if (/flood|water damage|rising water|overflow/i.test(documentType)) {
-    return faWater;
-  }
-  
-  // Match for fire insurance/protection
-  if (/fire|flame|burn|combustion|smoke/i.test(documentType)) {
-    return faFire;
-  }
-  
-  // Match for legal/liability documents
-  if (/legal|liability|lawsuit|litigation|tort/i.test(documentType)) {
-    return faBalanceScale;
-  }
-  
-  // Match for hazard/risk documents
-  if (/hazard|risk|danger|peril|warning/i.test(documentType)) {
-    return faExclamationTriangle;
-  }
-  
-  // Match for commercial auto/fleet
-  if (/fleet|commercial auto|commercial vehicle|transport/i.test(documentType)) {
-    return faTruck;
-  }
-  
-  // Match for workers' compensation
-  if (/workers comp|workers' compensation|workplace injury|occupational/i.test(documentType)) {
-    return faHardHat;
-  }
-  
-  // Match for industrial/manufacturing
-  if (/industrial|manufacturing|factory|plant|production/i.test(documentType)) {
-    return faIndustry;
-  }
-  
-  // Match for storm/weather related
-  if (/storm|hurricane|tornado|hail|weather damage/i.test(documentType)) {
-    return faCloudShowersHeavy;
-  }
-  
-  // Match for wind damage
-  if (/wind|windstorm|gust|gale/i.test(documentType)) {
-    return faWind;
-  }
-  
-  // Match for roadway/traffic incidents
-  if (/roadway|highway|traffic|intersection|accident|crash/i.test(documentType)) {
-    return faRoad;
-  }
-  
-  // Match for protection/security
-  if (/protection|security|safeguard|defense|safety/i.test(documentType)) {
-    return faShieldAlt;
-  }
-  
-  // Match for claims/legal judgments
-  if (/claim|judgment|settlement|adjudication|ruling/i.test(documentType)) {
-    return faGavel;
-  }
-  
-  // Default for contract/agreement
-  if (/contract|agreement|terms|certificate/i.test(documentType)) {
-    return faFileContract;
-  }
-  
-  // Default fallback
+  if (!documentType) return faFileAlt;
+  const lowerDocType = documentType.toLowerCase();
+  if (/medic(al|ation)|(health|disease)/i.test(lowerDocType)) return faFileMedical;
+  if (/history|anamnesis/i.test(lowerDocType)) return faHistory;
+  if (/pharmac(y|eutical)|medication|drug|prescription/i.test(lowerDocType)) return faPills;
+  if (/lab(oratory)?|clinical|test|specimen/i.test(lowerDocType)) return faFlask;
+  if (/physician|doctor|practitioner|clinician|md\b/i.test(lowerDocType)) return faUserMd;
+  if (/exam(ination)?|assessment|paramedical/i.test(lowerDocType)) return faStethoscope;
+  if (/hospital|clinic|center|facility|institution/i.test(lowerDocType)) return faHospital;
+  if (/x-ray|imaging|scan|radiolog(y|ical)|mri|ct scan/i.test(lowerDocType)) return faXRay;
+  if (/surg(ery|ical)|procedure|operation/i.test(lowerDocType)) return faProcedures;
+  if (/cardio|heart|cardiac|pulse|ekg|ecg/i.test(lowerDocType)) return faHeartbeat;
+  if (/pulmonary|lung|respiratory|breath/i.test(lowerDocType)) return faLungs;
+  if (/allerg(y|ies)|immunolog(y|ical)/i.test(lowerDocType)) return faAllergies;
+  if (/dental|dentist|tooth|teeth|oral/i.test(lowerDocType)) return faTooth;
+  if (/eye|vision|ophthalm(ology|ologist)|optical/i.test(lowerDocType)) return faEye;
+  if (/insurance|financial|coverage|policy|premium|underwriter/i.test(lowerDocType)) return faFileInvoiceDollar;
+  if (/form|(question|survey)(naire)?|assessment/i.test(lowerDocType)) return faClipboardList;
+  if (/note|report|summary|record/i.test(lowerDocType)) return faNotesMedical;
+  if (/microscop(e|ic)|patholog(y|ical)|cytolog(y|ical)|histolog(y|ical)/i.test(lowerDocType)) return faMicroscope;
+  if (/blood|hematolog(y|ical)|serum|plasma|specimen/i.test(lowerDocType)) return faVial;
+  if (/emergency|urgent|trauma|ambulance|ems/i.test(lowerDocType)) return faBriefcaseMedical;
+  if (/home|property|dwelling|real estate|building|structure/i.test(lowerDocType)) return faHome;
+  if (/auto|car|vehicle|motorcycle|truck|collision/i.test(lowerDocType)) return faCar;
+  if (/commercial|business property|office|warehouse|retail/i.test(lowerDocType)) return faBuilding;
+  if (/umbrella|liability|excess|protection/i.test(lowerDocType)) return faUmbrella;
+  if (/flood|water damage|rising water|overflow/i.test(lowerDocType)) return faWater;
+  if (/fire|flame|burn|combustion|smoke/i.test(lowerDocType)) return faFire;
+  if (/legal|liability|lawsuit|litigation|tort/i.test(lowerDocType)) return faBalanceScale;
+  if (/hazard|risk|danger|peril|warning/i.test(lowerDocType)) return faExclamationTriangle;
+  if (/fleet|commercial auto|commercial vehicle|transport/i.test(lowerDocType)) return faTruck;
+  if (/workers comp|workers' compensation|workplace injury|occupational/i.test(lowerDocType)) return faHardHat;
+  if (/industrial|manufacturing|factory|plant|production/i.test(lowerDocType)) return faIndustry;
+  if (/storm|hurricane|tornado|hail|weather damage/i.test(lowerDocType)) return faCloudShowersHeavy;
+  if (/wind|windstorm|gust|gale/i.test(lowerDocType)) return faWind;
+  if (/roadway|highway|traffic|intersection|accident|crash/i.test(lowerDocType)) return faRoad;
+  if (/protection|security|safeguard|defense|safety/i.test(lowerDocType)) return faShieldAlt;
+  if (/claim|judgment|settlement|adjudication|ruling/i.test(lowerDocType)) return faGavel;
+  if (/contract|agreement|terms|certificate/i.test(lowerDocType)) return faFileContract;
+  if (/upload/i.test(lowerDocType)) return faUpload;
   return faFileAlt;
 };
 
+// Define status mapping for user-friendly display
+const STATUS_MAPPING = {
+  'UPLOAD_PENDING': {
+    step: 1,
+    phase: 'Upload Pending',
+    details: 'Document upload is being finalized and queued for processing...'
+  },
+  'CLASSIFYING': {
+    step: 1,
+    phase: 'Classifying Document',
+    details: 'The AI is analyzing the document to determine its type and structure for optimal processing...'
+  },
+  'EXTRACTING': {
+    step: 2,
+    phase: 'Extracting Information',
+    details: 'Advanced AI models are reading through the document and extracting key information and data points...'
+  },
+  'ANALYZING': {
+    step: 3,
+    phase: 'Analyzing Content',
+    details: 'Our underwriting AI is performing comprehensive analysis to identify risks, discrepancies, and insights...'
+  },
+  'ACTING': {
+    step: 4,
+    phase: 'Taking Action',
+    details: 'The AI agent is making decisions and taking appropriate actions based on the analysis results...'
+  },
+  'COMPLETE': {
+    step: 5,
+    phase: 'Complete',
+    details: 'Analysis complete! Review the detailed results and AI recommendations below.'
+  },
+  'Failed': {
+    step: 5,
+    phase: 'Failed',
+    details: 'An error occurred during processing. Please try again or contact support.'
+  },
+  'ERROR': {
+    step: 5,
+    phase: 'Error',
+    details: 'An error occurred during processing. Please try again or contact support.'
+  }
+} as const;
+
 export function JobPage({ jobId }: JobPageProps) {
-  const [error, setError] = useState<string | null>(null)
+  const [error, setErrorOriginal] = useState<string | null>(null)
   const [showError, setShowError] = useState(false)
   const navigate = useNavigate();
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null)
-  const [partialAnalysis, setPartialAnalysis] = useState<Record<string, PageData>>({})
   const [currentStep, setCurrentStep] = useState(1)
-  const [currentPhase, setCurrentPhase] = useState<string>('Data Extraction')
-  const [phaseDetails, setPhaseDetails] = useState<string>('Loading...')
-  const [numPages, setNumPages] = useState<number | null>(null)
-  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [currentPhase, setCurrentPhase] = useState<string>('Loading Job Details...')
+  const [phaseDetails, setPhaseDetails] = useState<string>('Fetching the latest information...')
+  const [numPages, setNumPagesState] = useState<number | null>(null)
+  const [currentPage, setCurrentPageState] = useState<number>(1)
   const [activeTab, setActiveTab] = useState<TabType>('grouped')
   const [streamConnected, setStreamConnected] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
-  const [insuranceType, setInsuranceType] = useState<'life' | 'property_casualty'>('life')
+  const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null)
+  const [isFetchingPdfUrl, setIsFetchingPdfUrl] = useState<boolean>(false);
+  const [pdfBlob, setPdfBlobState] = useState<Blob | null>(null)
+  const [insuranceType, setInsuranceTypeState] = useState<'life' | 'property_casualty'>('life')
+  const [documentType, setDocumentType] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -388,331 +298,484 @@ export function JobPage({ jobId }: JobPageProps) {
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false)
   const [pdfWidth, setPdfWidth] = useState<number | undefined>(undefined)
 
-  // Calculate PDF width based on container size
-  useEffect(() => {
-    const calculatePdfWidth = () => {
-      const containerWidth = isAnalysisPanelOpen 
-        ? window.innerWidth * 0.45 // When split view is active
-        : window.innerWidth * 0.9; // When PDF is expanded
-      
-      // Set a maximum width to prevent the PDF from being too large
-      const maxWidth = 1000;
-      const width = Math.min(containerWidth, maxWidth);
-      
-      setPdfWidth(width);
-    };
+  const [isLoadingJobDetails, setIsLoadingJobDetails] = useState(true);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Calculate initially
-    calculatePdfWidth();
-    
-    // Recalculate on window resize
-    window.addEventListener('resize', calculatePdfWidth);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', calculatePdfWidth);
-    };
-  }, [isAnalysisPanelOpen]);
+  // Agent Action state - ADDED
+  const [agentActionData, setAgentActionData] = useState<AgentActionData | null>(null);
+  const [showAgentActionPopup, setShowAgentActionPopup] = useState(false);
 
-  // Update initial greeting when insurance type is available
-  useEffect(() => {
-    if (analysisData?.insurance_type) {
-      const insuranceType = analysisData.insurance_type;
-      console.log("INSURANCE TYPE detected in JobPage:", insuranceType);
-      let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
-      
-      if (insuranceType === 'property_casualty') {
-        greeting = "Hello! I'm your Property & Casualty insurance underwriting assistant. I've analyzed this document and can help with questions about property details, risk factors, and coverage considerations.";
-        console.log("Using P&C GREETING");
-      } else {
-        greeting = "Hello! I'm your Life Insurance underwriting assistant. I've analyzed this document and can help with questions about medical history, risk factors, and policy considerations.";
-        console.log("Using LIFE GREETING");
-      }
-      
-      setMessages([{
-        id: '1',
-        text: greeting,
-        sender: 'ai',
-        timestamp: new Date()
-      }]);
-    }
-  }, [analysisData?.insurance_type]);
+  // ADDED - Use ref to track current PDF URL to avoid dependency cycles
+  const currentPdfUrlRef = useRef<string | null>(null);
 
-  // Update insurance type when analysis data is loaded
-  useEffect(() => {
-    if (analysisData?.insurance_type) {
-      setInsuranceType(analysisData.insurance_type as 'life' | 'property_casualty');
-    }
-  }, [analysisData]);
-
-  // Function to fetch PDF and create blob URL
-  const fetchPDF = async (jobId: string) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/pdf/${jobId}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch PDF')
-      }
-      
-      const blob = await response.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      setPdfBlob(blob)
-      setPdfUrl(blobUrl)
-    } catch (err) {
-      console.error('Error fetching PDF:', err)
-      setError('Failed to load PDF')
-    }
-  }
-
-  // Function to fetch completed analysis from DynamoDB
-  const fetchAnalysis = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/analysis/${jobId}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          // Analysis not found - this is expected for in-progress jobs
-          return false;
-        }
-        throw new Error('Failed to fetch analysis');
-      }
-      const data: AnalysisResponse = await response.json();
-      // Ensure the data matches our expected type
-      const analysisData: AnalysisData = {
-        job_id: data.job_id,
-        timestamp: data.timestamp,
-        filename: data.filename,
-        page_analysis: data.page_analysis || {},
-        underwriter_analysis: data.underwriter_analysis || {},
-        status: data.status,
-        pdf_url: data.pdf_url || null,
-        insurance_type: data.insurance_type
-      };
-      setAnalysisData(analysisData);
-      setCurrentStep(3); // Analysis is complete
-      setCurrentPhase('Complete');
-      setPhaseDetails('Analysis complete');
-      return true;
-    } catch (err) {
-      console.error('Error fetching analysis:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch analysis');
-      return false;
-    }
+  // ADDED - Function to format document type for display
+  const formatDocumentType = (docType: string | null): string => {
+    if (!docType) return '';
+    return docType
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
-  useEffect(() => {
-    fetchAnalysis();
-  }, [jobId]);
+  const fetchDocumentUrl = useCallback(async () => {
+    if (pdfDownloadUrl) return; // Avoid re-fetching if we already have a URL
 
-  // Function to establish streaming connection
-  const connectToStream = (): EventSource | null => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      // handleUnauthorized(); // Removed as per edit hint
-      return null;
+    setIsFetchingPdfUrl(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/jobs/${jobId}/document-url`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch document URL');
+      }
+      const data = await response.json();
+      if (data.documentUrl) {
+        setPdfDownloadUrl(data.documentUrl);
+      }
+    } catch (error) {
+      console.error("Error fetching PDF URL:", error);
+      // Optionally set an error state here to show in the UI
+    } finally {
+      setIsFetchingPdfUrl(false);
+    }
+  }, [jobId, pdfDownloadUrl]); // Added pdfDownloadUrl to dependencies to prevent infinite loops from re-fetching
+
+  const fetchJobDetailsAndUpdateState = useCallback(async (isPolling = false) => {
+    if (!isPolling) {
+      setIsLoadingJobDetails(true);
+      setCurrentPhase('Loading Job Details...');
+      setPhaseDetails('Fetching the latest information...');
+    } else {
+      console.log("Polling job status...");
     }
 
-    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/analyze-progress/${jobId}?token=${token}`)
-    setStreamConnected(true)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/jobs/${jobId}`, {
+      });
 
-    // Clear any existing errors when we start a new connection
-    setError(null)
-    setShowError(false)
+      if (!response.ok) {
+        const errorData: { detail?: string, message?: string, error?: string } = await response.json().catch(() => ({}));
+        const errorMsg = errorData.detail || errorData.message || errorData.error || `Failed to fetch job details: ${response.status}`;
+        throw new Error(errorMsg);
+      }
 
-    eventSource.onmessage = (event) => {
-      try {
-        const eventData = JSON.parse(event.data);
-        if (eventData.type === 'batch_complete' && eventData.pages) {
-          const newPages = eventData.pages as Record<string, PageData>;
-          setPartialAnalysis(current => ({
-            ...current,
-            ...newPages
-          }));
-        } else if (eventData.type === 'phase1_complete') {
-          setCurrentStep(2);
-          setCurrentPhase('Underwriter Analysis');
-          
-          // Use different message based on insurance type
-          const insuranceType = analysisData?.insurance_type || 'life';
-          if (insuranceType === 'property_casualty') {
-            setPhaseDetails('Analyzing property risk factors and liability exposures...');
-          } else {
-            setPhaseDetails('Analyzing medical history and mortality risk factors...');
+      const jobApiData: JobApiResponse = await response.json();
+
+      const pageAnalysisTransformed: Record<string, PageData> = {};
+
+      // First try to use directly provided extractedData
+      if (jobApiData.extractedData) {
+        try {
+          console.log("Using directly provided extractedData", jobApiData.extractedData);
+          for (const key in jobApiData.extractedData) {
+            if (Object.prototype.hasOwnProperty.call(jobApiData.extractedData, key)) {
+              const value = jobApiData.extractedData[key];
+              // Create a human-readable title from the key
+              const title = key.replace(/_/g, ' ');
+              pageAnalysisTransformed[key] = {
+                page_type: title, // This will be the group title
+                content: `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``, // Markdown for JSON code block
+                // numeric_page_num_for_nav can be omitted or set to a default like 1 if not applicable
+              };
+            }
           }
+          console.log("Populated page_analysis from extractedData");
+        } catch (directError) {
+          console.error("Error processing extractedData:", directError);
+        }
+      } 
+      // Then fall back to extractedDataJsonStr if needed
+      else if (jobApiData.extractedDataJsonStr) {
+        try {
+          const parsedExtraction = JSON.parse(jobApiData.extractedDataJsonStr);
+          if (typeof parsedExtraction === 'object' && parsedExtraction !== null) {
+            for (const key in parsedExtraction) {
+              if (Object.prototype.hasOwnProperty.call(parsedExtraction, key)) {
+                const value = parsedExtraction[key];
+                // Create a human-readable title from the key
+                const title = key.replace(/_/g, ' ').replace(/\\b\\w/g, char => char.toUpperCase());
+                pageAnalysisTransformed[key] = {
+                  page_type: title, // This will be the group title
+                  content: `\`\`\`json\\n${JSON.stringify(value, null, 2)}\\n\`\`\``, // Markdown for JSON code block
+                  // numeric_page_num_for_nav can be omitted or set to a default like 1 if not applicable
+                };
+              }
+            }
+            console.log("Populated page_analysis from extractedDataJsonStr");
+          } else {
+            console.warn("extractedDataJsonStr did not parse to a valid object.");
+            // Optionally, could put the raw string into a single PageData entry here as a fallback
+          }
+        } catch (parseError) {
+          console.error("Error parsing extractedDataJsonStr:", parseError);
+          // Fallback: put the raw string into a single PageData entry
+          pageAnalysisTransformed["raw_extracted_data"] = {
+            page_type: "Raw Extracted Data (Parse Error)",
+            content: `\`\`\`text\\n${jobApiData.extractedDataJsonStr}\\n\`\`\``,
+          };
+        }
+      } else if (jobApiData.extracted_data?.sections && jobApiData.extracted_data.sections.length > 0) {
+        // Fallback to existing sections logic if extractedDataJsonStr is not present
+        jobApiData.extracted_data.sections.forEach((section, index) => {
+          const key = section.title || `section-${index}`;
+          let content = section.content || "";
+          if (section.findings && section.findings.length > 0) {
+            content += "\n\n**Findings:**\n" + section.findings.map(f => `- ${f.type}: ${f.description} (Severity: ${f.severity || 'N/A'})${f.page_references && f.page_references.length > 0 ? ` (Pages: ${f.page_references.join(', ')})` : ''}`).join("\n");
+          }
+          pageAnalysisTransformed[key] = {
+            page_type: section.title || "Section",
+            content: content,
+            numeric_page_num_for_nav: section.start_page_number
+          };
+        });
+        console.log("Populated page_analysis from extracted_data.sections (fallback)");
+      } else {
+        console.log("No data available to populate page_analysis for Document Analysis tab.");
+        // Optionally, add a placeholder if both are empty
+        pageAnalysisTransformed["no_data"] = {
+            page_type: "Document Analysis",
+            content: "No detailed extraction data available for display."
+        };
+      }
+
+      // Transform underwriter analysis data
+      let underwriterAnalysisTransformed: UnderwriterAnalysis = {
+        RISK_ASSESSMENT: "Not available.",
+        DISCREPANCIES: "Not available.",
+        FINAL_RECOMMENDATION: "Not available.",
+      };
+      
+      // First try to use directly provided analysisOutput
+      if (jobApiData.analysisOutput) {
+        console.log("Using directly provided analysisOutput", jobApiData.analysisOutput);
+        try {
+          // Transform identified_risks array to markdown string
+          const riskAssessment = jobApiData.analysisOutput.identified_risks && Array.isArray(jobApiData.analysisOutput.identified_risks)
+            ? jobApiData.analysisOutput.identified_risks.map((risk: any) => {
+                const pageRefs = risk.page_references && Array.isArray(risk.page_references) && risk.page_references.length > 0
+                  ? ` ([${risk.page_references.join(', ')}](/page/${risk.page_references[0]}))`
+                  : '';
+                return `- **${risk.severity || 'N/A'}**: ${risk.risk_description}${pageRefs}`;
+              }).join('\n')
+            : "No risks identified.";
+
+          // Transform discrepancies array to markdown string  
+          const discrepancies = jobApiData.analysisOutput.discrepancies && Array.isArray(jobApiData.analysisOutput.discrepancies)
+            ? jobApiData.analysisOutput.discrepancies.map((disc: any) => {
+                const pageRefs = disc.page_references && Array.isArray(disc.page_references) && disc.page_references.length > 0
+                  ? ` ([${disc.page_references.join(', ')}](/page/${disc.page_references[0]}))`
+                  : '';
+                return `- **${disc.discrepancy_description}**: ${disc.details}${pageRefs}`;
+              }).join('\n')
+            : "No discrepancies found.";
+
+          underwriterAnalysisTransformed = {
+            RISK_ASSESSMENT: riskAssessment,
+            DISCREPANCIES: discrepancies,
+            MEDICAL_TIMELINE: jobApiData.insurance_type === 'life' ? (jobApiData.analysisOutput.medical_timeline || "Not available.") : undefined,
+            PROPERTY_ASSESSMENT: jobApiData.insurance_type === 'property_casualty' ? (jobApiData.analysisOutput.property_assessment || "Not available.") : undefined,
+            FINAL_RECOMMENDATION: jobApiData.analysisOutput.final_recommendation || "Not available.",
+          };
+          console.log("Populated underwriter analysis from analysisOutput");
+        } catch (analysisError) {
+          console.error("Error processing analysisOutput:", analysisError);
+          // Fall through to next option
+        }
+      }
+      // Then try to parse the analysisOutputJsonStr field
+      else if (jobApiData.analysisOutputJsonStr) {
+        try {
+          const parsedAnalysis = JSON.parse(jobApiData.analysisOutputJsonStr);
+          console.log("Using analysisOutputJsonStr for underwriter analysis");
           
-        } else if (eventData.type === 'complete') {
-          setCurrentStep(3);
-          setCurrentPhase('Complete');
-          setPhaseDetails('Analysis complete');
-          // Trigger a fetch of the final analysis
-          void fetchAnalysis();
-        } else if (eventData.type === 'error') {
-          setError(eventData.message || 'An error occurred during analysis');
-        } else if (eventData.type === 'progress') {
-          setPhaseDetails(eventData.message);
+          // Transform identified_risks array to markdown string
+          const riskAssessment = parsedAnalysis.identified_risks && Array.isArray(parsedAnalysis.identified_risks)
+            ? parsedAnalysis.identified_risks.map((risk: any) => {
+                const pageRefs = risk.page_references && Array.isArray(risk.page_references) && risk.page_references.length > 0
+                  ? ` ([${risk.page_references.join(', ')}](/page/${risk.page_references[0]}))`
+                  : '';
+                return `- **${risk.severity || 'N/A'}**: ${risk.risk_description}${pageRefs}`;
+              }).join('\n')
+            : "No risks identified.";
+
+          // Transform discrepancies array to markdown string  
+          const discrepancies = parsedAnalysis.discrepancies && Array.isArray(parsedAnalysis.discrepancies)
+            ? parsedAnalysis.discrepancies.map((disc: any) => {
+                const pageRefs = disc.page_references && Array.isArray(disc.page_references) && disc.page_references.length > 0
+                  ? ` ([${disc.page_references.join(', ')}](/page/${disc.page_references[0]}))`
+                  : '';
+                return `- **${disc.discrepancy_description}**: ${disc.details}${pageRefs}`;
+              }).join('\n')
+            : "No discrepancies found.";
+
+          underwriterAnalysisTransformed = {
+            RISK_ASSESSMENT: riskAssessment,
+            DISCREPANCIES: discrepancies,
+            MEDICAL_TIMELINE: jobApiData.insurance_type === 'life' ? (parsedAnalysis.medical_timeline || "Not available.") : undefined,
+            PROPERTY_ASSESSMENT: jobApiData.insurance_type === 'property_casualty' ? (parsedAnalysis.property_assessment || "Not available.") : undefined,
+            FINAL_RECOMMENDATION: parsedAnalysis.final_recommendation || "Not available.",
+          };
+        } catch (parseError) {
+          console.error("Error parsing analysisOutputJsonStr:", parseError);
+          // Fall through to legacy approach
+          underwriterAnalysisTransformed = {
+            RISK_ASSESSMENT: jobApiData.identified_risks 
+              ? jobApiData.identified_risks.map(r => `- ${r.description} (Severity: ${r.severity || 'N/A'})${r.page_references && r.page_references.length > 0 ? ` (Pages: ${r.page_references.join(', ')})` : ''}`).join("\n") 
+              : "Not available.",
+            DISCREPANCIES: jobApiData.discrepancies_summary || "Not available.",
+            MEDICAL_TIMELINE: jobApiData.insurance_type === 'life' ? (jobApiData.medical_timeline_summary || "Not available.") : undefined,
+            PROPERTY_ASSESSMENT: jobApiData.insurance_type === 'property_casualty' ? (jobApiData.property_assessment_summary || "Not available.") : undefined,
+            FINAL_RECOMMENDATION: jobApiData.underwriting_recommendation || "Not available.",
+          };
         }
-      } catch (err) {
-        console.error('Error parsing event data:', err);
+      } else {
+        // Fallback to legacy fields if analysisOutputJsonStr is not available
+        console.log("Using legacy fields for underwriter analysis");
+        underwriterAnalysisTransformed = {
+          RISK_ASSESSMENT: jobApiData.identified_risks 
+            ? jobApiData.identified_risks.map(r => `- ${r.description} (Severity: ${r.severity || 'N/A'})${r.page_references && r.page_references.length > 0 ? ` (Pages: ${r.page_references.join(', ')})` : ''}`).join("\n") 
+            : "Not available.",
+          DISCREPANCIES: jobApiData.discrepancies_summary || "Not available.",
+          MEDICAL_TIMELINE: jobApiData.insurance_type === 'life' ? (jobApiData.medical_timeline_summary || "Not available.") : undefined,
+          PROPERTY_ASSESSMENT: jobApiData.insurance_type === 'property_casualty' ? (jobApiData.property_assessment_summary || "Not available.") : undefined,
+          FINAL_RECOMMENDATION: jobApiData.underwriting_recommendation || "Not available.",
+        };
       }
-    };
+      
+      const newAnalysisData: AnalysisData = {
+        job_id: jobApiData.jobId,
+        timestamp: jobApiData.timestamp,
+        filename: jobApiData.originalFilename,
+        page_analysis: pageAnalysisTransformed,
+        underwriter_analysis: underwriterAnalysisTransformed,
+        status: jobApiData.status,
+        insurance_type: jobApiData.insurance_type,
+      };
+      setAnalysisData(newAnalysisData);
 
-    eventSource.onerror = () => {
-      console.log('EventSource failed.')
-      eventSource.close()
-      setStreamConnected(false)
-    };
+      fetchDocumentUrl(); // Always fetch the document URL after job data is received
 
-    return eventSource;
-  }
+      // ADDED - Store document type from API response
+      if (jobApiData.documentType) {
+        setDocumentType(jobApiData.documentType);
+      }
 
-  // Effect for initialization and cleanup
+      // Parse and handle agent action data
+      // First try to use directly provided agentActionOutput
+      if (jobApiData.agentActionOutput) {
+        console.log("Found direct agentActionOutput:", jobApiData.agentActionOutput);
+        
+        // Only show popup if we don't already have this agent action data (to avoid showing on every poll)
+        if (!agentActionData || JSON.stringify(agentActionData) !== JSON.stringify(jobApiData.agentActionOutput)) {
+          setAgentActionData(jobApiData.agentActionOutput);
+          setShowAgentActionPopup(true);
+          console.log("Agent action popup will be shown from direct agentActionOutput");
+        }
+      }
+      // Then fall back to parsing agentActionOutputJsonStr if needed
+      else if (jobApiData.agentActionOutputJsonStr) {
+        try {
+          const parsedAgentAction: AgentActionData = JSON.parse(jobApiData.agentActionOutputJsonStr);
+          console.log("Parsed agent action data from JSON string:", parsedAgentAction);
+          
+          // Only show popup if we don't already have this agent action data (to avoid showing on every poll)
+          if (!agentActionData || JSON.stringify(agentActionData) !== JSON.stringify(parsedAgentAction)) {
+            setAgentActionData(parsedAgentAction);
+            setShowAgentActionPopup(true);
+            console.log("Agent action popup will be shown from parsed agentActionOutputJsonStr");
+          }
+        } catch (parseError) {
+          console.error("Error parsing agentActionOutputJsonStr:", parseError);
+        }
+      }
+
+      setInsuranceTypeState(jobApiData.insurance_type || 'life');
+      
+      // Use the new status mapping for cleaner status handling
+      const statusKey = jobApiData.status as keyof typeof STATUS_MAPPING;
+      const statusInfo = STATUS_MAPPING[statusKey];
+
+      if (statusInfo) {
+        setCurrentStep(statusInfo.step);
+        setCurrentPhase(statusInfo.phase);
+        setPhaseDetails(statusInfo.details);
+
+        // Handle polling logic based on status
+        if (statusKey === 'COMPLETE') {
+          // Stop polling when complete
+          if (pollingIntervalRef.current) {
+            console.log("Job completed - stopping polling");
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        } else if (statusKey === 'Failed' || statusKey === 'ERROR') {
+          // Stop polling and show error
+          setErrorOriginal(jobApiData.error_message || 'Job processing failed.');
+          setShowError(true);
+          if (pollingIntervalRef.current) {
+            console.log("Job failed - stopping polling");
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        } else {
+          // Continue polling for in-progress statuses
+          if (!pollingIntervalRef.current) {
+            console.log(`Job status is ${statusKey} - starting polling every 5 seconds`);
+            pollingIntervalRef.current = setInterval(() => fetchJobDetailsAndUpdateState(true), 5000);
+          }
+        }
+      } else {
+        // Fallback for unknown statuses
+        console.warn(`Unknown status received: ${jobApiData.status}`);
+        setCurrentStep(1);
+        setCurrentPhase('Processing');
+        setPhaseDetails(`Status: ${jobApiData.status}`);
+        
+        // Continue polling for unknown statuses (assume they're in-progress)
+        if (!pollingIntervalRef.current) {
+          console.log(`Unknown status ${jobApiData.status} - starting polling every 5 seconds`);
+          pollingIntervalRef.current = setInterval(() => fetchJobDetailsAndUpdateState(true), 5000);
+        }
+      }
+
+      setErrorOriginal(null);
+      setShowError(false);
+
+    } catch (err) {
+      console.error("Error fetching job details:", err);
+      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred.";
+      setErrorOriginal(errorMsg);
+      setShowError(true);
+      setCurrentPhase('Error');
+      setPhaseDetails(errorMsg.substring(0,100));
+       if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+    } finally {
+      if (!isPolling) {
+        setIsLoadingJobDetails(false);
+      }
+    }
+  }, [jobId, fetchDocumentUrl]);
+
   useEffect(() => {
-    let isSubscribed = true;
-    let eventSource: EventSource | null = null;
-    let currentBlobUrl: string | null = null;
-
-    const init = async () => {
-      try {
-        // First try to fetch completed analysis
-        const analysisExists = await fetchAnalysis();
-        if (!analysisExists && isSubscribed) {
-          eventSource = connectToStream();
-        }
-
-        // Fetch PDF
-        await fetchPDF(jobId);
-      } catch (err) {
-        console.error('Error in initialization:', err);
-        if (isSubscribed) {
-          setError(err instanceof Error ? err.message : 'Failed to initialize');
-        }
-      }
-    };
-
-    init();
+    
+    fetchJobDetailsAndUpdateState();
 
     return () => {
-      isSubscribed = false;
-      if (eventSource) {
-        eventSource.close();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
-      if (currentBlobUrl) {
-        URL.revokeObjectURL(currentBlobUrl);
-      }
-      setStreamConnected(false);
+      // No specific cleanup needed for direct S3 presigned URLs as they are not blob URLs
+      // The sessionStorage item will expire or be overwritten naturally.
     };
-  }, [jobId]); // Only depend on jobId
+  }, [jobId, fetchJobDetailsAndUpdateState]);
 
-  // Handle page navigation from links
+  useEffect(() => {
+    const calculatePdfWidth = () => {
+      const containerWidth = isAnalysisPanelOpen ? window.innerWidth * 0.45 : window.innerWidth * 0.9;
+      const maxWidth = 1000;
+      const width = Math.min(containerWidth, maxWidth);
+      setPdfWidth(width);
+    };
+    calculatePdfWidth();
+    window.addEventListener('resize', calculatePdfWidth);
+    return () => window.removeEventListener('resize', calculatePdfWidth);
+  }, [isAnalysisPanelOpen]);
+
+  useEffect(() => {
+    if (analysisData?.insurance_type) {
+      const type = analysisData.insurance_type;
+      let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
+      if (type === 'property_casualty') {
+        greeting = "Hello! I'm your Property & Casualty insurance underwriting assistant. I've analyzed this document and can help with questions about property details, risk factors, and coverage considerations.";
+      } else if (type === 'life') {
+        greeting = "Hello! I'm your Life Insurance underwriting assistant. I've analyzed this document and can help with questions about medical history, risk factors, and policy considerations.";
+      }
+      setMessages([{ id: '1', text: greeting, sender: 'ai', timestamp: new Date() }]);
+    } else if (!isLoadingJobDetails && !analysisData?.insurance_type) {
+        setMessages([{ id: '1', text: "Hi! I'm your AI assistant. How can I help with this document?", sender: 'ai', timestamp: new Date() }]);
+    }
+  }, [analysisData?.insurance_type, isLoadingJobDetails]);
+
+  const onDocumentLoadSuccess = ({ numPages: loadedNumPages }: { numPages: number }) => {
+    setNumPagesState(loadedNumPages);
+  };
+
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    console.log("in handleLinkClick")
-    e.preventDefault()
-    const href = e.currentTarget.getAttribute('href')
-    console.log("href", href)
+    e.preventDefault();
+    const href = e.currentTarget.getAttribute('href');
     if (href?.startsWith('/page/')) {
-      const pageNum = href.split('/').pop()
-      if (pageNum) {
-        const page = parseInt(pageNum)
+      const pageNumStr = href.split('/').pop();
+      if (pageNumStr) {
+        const page = parseInt(pageNumStr);
         if (!isNaN(page) && page > 0 && page <= (numPages || 0)) {
-          setCurrentPage(page)
+          setCurrentPageState(page);
         }
       }
     }
-  }
-
+  };
+  
   const renderGroupedAnalysis = () => {
-    const analysis = (partialAnalysis && Object.keys(partialAnalysis).length > 0) 
-      ? partialAnalysis 
-      : analysisData?.page_analysis
+    const localAnalysisData = analysisData;
 
-    if (!analysis || Object.keys(analysis).length === 0) {
-        console.log("No analysis data available")
-        return null
+    if (!localAnalysisData?.page_analysis || Object.keys(localAnalysisData.page_analysis).length === 0) {
+      if (isLoadingJobDetails || currentPhase !== 'Complete') return <p>Loading document analysis sections...</p>;
+      return <p>No document page analysis data available.</p>;
     }
 
-    // Convert object entries to array
-    const pages = Object.entries(analysis).map(([pageNum, pageData]) => {
-      const { page_type, content } = pageData as PageData
-      return {
-        pageNum: parseInt(pageNum),
-        pageType: page_type,
-        content
-      }
-    })
+    const pagesToRender = Object.entries(localAnalysisData.page_analysis).map(([pageNumKey, pageDataVal]) => ({
+      pageNumKey,
+      pageType: pageDataVal.page_type,
+      content: pageDataVal.content,
+      numericPageNum: pageDataVal.numeric_page_num_for_nav || parseInt(pageNumKey.replace(/[^0-9]/g, '')) || 1
+    }));
     
-    // Group pages by document type (text before any dash)
-    const groups: Record<string, typeof pages> = {}
-    
-    pages.forEach(page => {
-      // Get the document type (text before the dash)
-      const dashIndex = page.pageType.indexOf('-')
-      const docType = dashIndex > 0 
-        ? page.pageType.substring(0, dashIndex).trim() 
-        : page.pageType.trim()
-      
-      // Create the group if it doesn't exist
-      if (!groups[docType]) {
-        groups[docType] = []
-      }
-      
-      // Add the page to its group
-      groups[docType].push(page)
-    })
+    const groups: Record<string, typeof pagesToRender> = {};
+    pagesToRender.forEach(page => {
+      const docType = page.pageType.split('-')[0].trim() || "Uncategorized";
+      if (!groups[docType]) groups[docType] = [];
+      groups[docType].push(page);
+    });
 
     return (
       <div className="grouped-analysis">
         {Object.entries(groups).map(([groupTitle, groupPages]) => {
-          // Sort pages by page number to ensure we get the first page of the section
-          const sortedPages = [...groupPages].sort((a, b) => a.pageNum - b.pageNum);
-          const firstPageInGroup = sortedPages[0]?.pageNum;
-          
+          const sortedPages = [...groupPages].sort((a, b) => a.numericPageNum - b.numericPageNum);
+          const firstPageInGroup = sortedPages[0]?.numericPageNum;
           return (
-            <div 
-              key={groupTitle}
-              className={`analysis-group`}
-            >
+            <div key={groupTitle} className={`analysis-group`}>
               <button 
                 className={`group-header ${expandedGroups.has(groupTitle) ? 'expanded' : ''}`}
-                onClick={(e) => {
-                  // Toggle the expanded state
+                onClick={() => {
                   const updatedGroups = new Set(expandedGroups);
-                  if (updatedGroups.has(groupTitle)) {
-                    updatedGroups.delete(groupTitle);
-                  } else {
-                    updatedGroups.add(groupTitle);
-                  }
+                  if (updatedGroups.has(groupTitle)) updatedGroups.delete(groupTitle);
+                  else updatedGroups.add(groupTitle);
                   setExpandedGroups(updatedGroups);
-                  
-                  // Navigate to the first page of the group
-                  if (firstPageInGroup) {
-                    setCurrentPage(firstPageInGroup);
-                  }
+                  if (firstPageInGroup) setCurrentPageState(firstPageInGroup);
                 }}
               >
                 <div className="group-title">
                   <FontAwesomeIcon icon={getDocumentIcon(groupTitle)} />
-                  {groupTitle} ({groupPages.length} {groupPages.length === 1 ? 'page' : 'pages'})
+                  Page {groupTitle} 
                 </div>
-                <FontAwesomeIcon 
-                  icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight} 
-                />
+                <FontAwesomeIcon icon={expandedGroups.has(groupTitle) ? faChevronLeft : faChevronRight} />
               </button>
-              
               {expandedGroups.has(groupTitle) && (
                 <div className="group-content">
                   {groupPages.map(page => (
                     <div 
-                      key={page.pageNum}
-                      className={`page-card ${currentPage === page.pageNum ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(page.pageNum)}
+                      key={page.pageNumKey}
+                      className={`page-card ${currentPage === page.numericPageNum ? 'active' : ''}`}
+                      onClick={() => setCurrentPageState(page.numericPageNum)}
                     >
                       <div className="page-header">
-                        <div className="page-number">Page {page.pageNum}</div>
-                        <div className="page-type">{page.pageType}</div>
+                        <div className="page-number">{page.pageType}</div>
                       </div>
-                      <div className="page-content">
-                        {page.content.split('\n').map((line: string, i: number) => (
-                          line.trim() !== '' && <div key={i} className="content-line">{line}</div>
-                        ))}
-                      </div>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={customMarkdownComponentsFromStyles}>
+                        {page.content}
+                      </ReactMarkdown>
                     </div>
                   ))}
                 </div>
@@ -721,464 +784,330 @@ export function JobPage({ jobId }: JobPageProps) {
           );
         })}
       </div>
-    )
-  }
+    );
+  };
 
   const renderUnderwriterAnalysis = () => {
-    if (!analysisData?.underwriter_analysis) return null;
+    const localAnalysisData = analysisData;
+    if (!localAnalysisData?.underwriter_analysis) {
+      if (isLoadingJobDetails || currentPhase !== 'Complete') return <p>Loading underwriter analysis...</p>;
+      return <p>No underwriter analysis available.</p>;
+    }
     
-    console.log("renderUnderwriterAnalysis - insurance type:", analysisData?.insurance_type);
-    
-    // Define the order of sections with appropriate icons based on insurance type
-    const sectionConfig = (analysisData.insurance_type === 'property_casualty') 
+    interface SectionConfigItem {
+      key: keyof UnderwriterAnalysis;
+      icon: any; // Ideally FontAwesomeIconDefinition, but 'any' for brevity here
+      title: string; // Explicit title for display
+    }
+
+    const sectionConfig: SectionConfigItem[] = localAnalysisData.insurance_type === 'property_casualty' 
       ? [
-          { key: 'RISK_ASSESSMENT', icon: faClipboardCheck },
-          { key: 'DISCREPANCIES', icon: faClipboardList },
-          { key: 'PROPERTY_ASSESSMENT', icon: faHome },
-          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+          { key: 'RISK_ASSESSMENT', icon: faClipboardCheck, title: 'Risk Assessment' }, 
+          { key: 'DISCREPANCIES', icon: faClipboardList, title: 'Discrepancies' }, 
+          { key: 'PROPERTY_ASSESSMENT', icon: faHome, title: 'Property Assessment' }, 
+          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle, title: 'Final Recommendation' } 
         ]
       : [
-          { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical },
-          { key: 'DISCREPANCIES', icon: faClipboardList },
-          { key: 'MEDICAL_TIMELINE', icon: faHistory },
-          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle }
+          { key: 'RISK_ASSESSMENT', icon: faBriefcaseMedical, title: 'Risk Assessment' }, 
+          { key: 'DISCREPANCIES', icon: faClipboardList, title: 'Discrepancies' }, 
+          { key: 'MEDICAL_TIMELINE', icon: faHistory, title: 'Medical Timeline' }, 
+          { key: 'FINAL_RECOMMENDATION', icon: faCheckCircle, title: 'Final Recommendation' } 
         ];
-    
-    console.log("Using section config:", sectionConfig.map(s => s.key).join(', '));
     
     return (
       <div className="underwriter-analysis">
-        {sectionConfig.map(({key, icon}) => {
-          const content = analysisData.underwriter_analysis[key];
-          if (!content) {
-            console.log(`No content found for section: ${key}`);
-            return null;
-          }
-          
-          console.log(`Rendering section: ${key} with content length: ${content.length}`);
-          
+        {sectionConfig.map((item) => {
+          // item.key is now correctly typed as keyof UnderwriterAnalysis
+          const content = localAnalysisData.underwriter_analysis[item.key];
+          // Only render the section if its key is relevant for the insurance type AND content exists
+          if (!content || content === "Not available.") return null;
+          // For optional fields, explicitly check if they should be rendered based on insurance type
+          if (item.key === 'MEDICAL_TIMELINE' && localAnalysisData.insurance_type !== 'life') return null;
+          if (item.key === 'PROPERTY_ASSESSMENT' && localAnalysisData.insurance_type !== 'property_casualty') return null;
+
           return (
-            <div key={key} className="analysis-section">
-              <h3><FontAwesomeIcon icon={icon} /> {key.replace(/_/g, ' ')}</h3>
+            <div key={item.key} className="analysis-section">
+              <h3><FontAwesomeIcon icon={item.icon} /> {item.title}</h3>
               <div className="analysis-content">
-                {content.split('\n').map((line: string, i: number) => {
-                  // Make page references clickable
-                  const pageMatches = line.match(/\b(?:page|pg\.?|p\.?)\s*(\d+)\b/gi)
-                  if (pageMatches) {
-                    let lastIndex = 0
-                    const parts: JSX.Element[] = []
-                    
-                    pageMatches.forEach((match: string) => {
-                      const index = line.indexOf(match, lastIndex)
-                      const pageNum = match.match(/\d+/)?.[0]
-                      
-                      // Add text before the match
-                      if (index > lastIndex) {
-                        parts.push(
-                          <span key={`text-${i}-${index}`}>
-                            {line.slice(lastIndex, index)}
-                          </span>
-                        )
-                      }
-                      
-                      // Add the page reference
-                      if (pageNum) {
-                        parts.push(
-                          <PageReference 
-                            key={`ref-${i}-${index}`}
-                            pageNum={pageNum}
-                            text={match}
-                          />
-                        )
-                      }
-                      
-                      lastIndex = index + match.length
-                    })
-                    
-                    // Add any remaining text
-                    if (lastIndex < line.length) {
-                      parts.push(
-                        <span key={`text-${i}-end`}>
-                          {line.slice(lastIndex)}
-                        </span>
-                      )
-                    }
-                    
-                    return <p key={i}>{parts}</p>
-                  }
-                  return <p key={i}>{line}</p>
-                })}
+                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={{...customMarkdownComponentsFromStyles, a: ({href, children}) => (<PageReference pageNum={href?.replace("/page/","") || "1"} text={children as string}/>) }}>{content}</ReactMarkdown>
               </div>
             </div>
-          )
+          );
         })}
       </div>
-    )
-  }
-
+    );
+  };
+  
   const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: newMessage.trim(),
-      sender: 'user',
-      timestamp: new Date()
-    }
-
-    // Add user message to history
-    const updatedMessages = [...messages, userMessage]
-    setMessages(updatedMessages)
-    setNewMessage('')
-    setIsTyping(true)
-
+    e.preventDefault(); if (!newMessage.trim()) return;
+    const userMessage: Message = { id: Date.now().toString(), text: newMessage.trim(), sender: 'user', timestamp: new Date()};
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages); setNewMessage(''); setIsTyping(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/${jobId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: updatedMessages
-        }),
-      })
-
-      if (!response.ok) {
-        // handleUnauthorized(); // Removed as per edit hint
-        throw new Error('Failed to get response from AI')
-      }
-
-      const data = await response.json()
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.response,
-        sender: 'ai',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, aiMessage])
+      const messagesToSend = updatedMessages.filter(msg => msg.id !== '1');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/${jobId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: messagesToSend })
+      });
+      if (!response.ok) throw new Error('AI chat error');
+      const data = await response.json();
+      const aiMessage: Message = { id: (Date.now() + 1).toString(), text: data.response, sender: 'ai', timestamp: new Date()};
+      setMessages(prev => [...prev, aiMessage]);
     } catch (err) {
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Sorry, I encountered an error while processing your message. Please try again.",
-        sender: 'ai',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsTyping(false)
-    }
+      setMessages(prev => [...prev, {id: (Date.now() + 1).toString(), text: "Chat error. Please try again.", sender: 'ai', timestamp: new Date()}]);
+    } finally { setIsTyping(false); }
+  };
+
+  if (isLoadingJobDetails && !analysisData) {
+    return (
+      <div className="container job-page-override">
+        <div className="progress-container" style={{textAlign: 'center', padding: '50px'}}>
+        <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+            <h1>Loading Job Details...</h1>
+            <p>{phaseDetails}</p>
+        </div>
+      </div>
+    );
   }
 
-  // Wrap the main content in the contexts
+  if (error && showError) {
+    return (
+      <div className="container job-page-override">
+        <div className="error-message" style={{textAlign: 'center', padding: '50px'}}>
+        <FontAwesomeIcon icon={faTimesCircle} size="3x" color="red" />
+            <h1>An Error Occurred</h1>
+        <p>{error}</p>
+            <button onClick={() => { setErrorOriginal(null); setShowError(false); fetchJobDetailsAndUpdateState(); }} className="upload-button">
+                Retry
+        </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <PageContext.Provider value={[currentPage, setCurrentPage]}>
-      <NumPagesContext.Provider value={[numPages, setNumPages]}>
-        <div className="container">
-          {/* Navigation buttons */}
+    <PageContext.Provider value={[currentPage, setCurrentPageState]}>
+      <NumPagesContext.Provider value={[numPages, setNumPagesState]}>
+        <div className="container job-page-override">
           <div className="page-navigation">
-            <button 
-              onClick={() => navigate('/')} 
-              className="nav-button"
-            >
-              <FontAwesomeIcon icon={faFileMedical} /> Upload New
+            <button onClick={() => navigate('/')} className="nav-button">
+              <FontAwesomeIcon icon={faUpload} /> Upload New
+            </button>
+            <button className="how-it-works-button" onClick={() => setIsHowItWorksOpen(true)}>
+              <FontAwesomeIcon icon={faInfoCircle} /> How It Works
             </button>
           </div>
           
-          {/* How It Works Button */}
-          <button 
-            className="how-it-works-button"
-            onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
-          >
-            <FontAwesomeIcon icon={faInfoCircle} /> How It Works
-          </button>
-
-          {/* Job info section with insurance type */}
           <div className="job-header">
-            <h1>{analysisData?.filename}</h1>
+            <div className="job-title-section">
+              <h1>{analysisData?.filename || `Processing Job ${jobId.slice(0, 8)}...`}</h1>
+            </div>
             <div className="header-controls">
+              {documentType && (
+                <div className="document-classification">
+                  <FontAwesomeIcon icon={getDocumentIcon(documentType)} className="doc-icon" />
+                  <span className="doc-type-label">{formatDocumentType(documentType)}</span>
+                </div>
+              )}
               {analysisData && (
                 <div className="insurance-type-badge">
-                  {insuranceType === 'property_casualty' ? (
-                    <span className="badge p-and-c">
-                      <FontAwesomeIcon icon={faHome} /> Property & Casualty
-                    </span>
+                  {analysisData.insurance_type === 'property_casualty' ? (
+                    <span className="badge p-and-c"><FontAwesomeIcon icon={faHome} /> Property & Casualty</span>
                   ) : (
-                    <span className="badge life">
-                      <FontAwesomeIcon icon={faBriefcaseMedical} /> Life Insurance
-                    </span>
-                  )}
+                    <span className="badge life"><FontAwesomeIcon icon={faBriefcaseMedical} /> Life Insurance</span>
+            )}
                 </div>
               )}
             </div>
           </div>
 
-          {(currentStep < 3 || currentPhase !== 'Complete') && (
-            <>
-              <h1>Analysis Progress</h1>
-              
-              {error && showError && (
-                <div className="error-message">
-                  {error}
-                  <button 
-                    onClick={() => {
-                      setError(null)
-                      setShowError(false)
-                      if (!streamConnected) connectToStream()
-                    }}
-                    className="upload-button"
-                    style={{ marginLeft: '1rem' }}
-                  >
-                    Retry Connection
-                  </button>
-                </div>
-              )}
-              
-              <div className="progress-container">
-                <div className="progress-steps">
-                  <div className={`progress-dot ${currentStep >= 1 ? 'active' : ''}`}>
-                    {currentStep >= 1 && <FontAwesomeIcon icon={faUpload} className="progress-icon" />}
+          {/* Agent Action Popup - ADDED */}
+          {showAgentActionPopup && agentActionData && (
+            <div className="agent-action-popup">
+              <div className="agent-action-content">
+                <button 
+                  className="agent-action-close" 
+                  onClick={() => setShowAgentActionPopup(false)}
+                  aria-label="Close notification"
+                >
+                  <FontAwesomeIcon icon={faTimes} />
+                </button>
+                <div className="agent-action-header">
+                  <div className="agent-action-icon">
+                    <FontAwesomeIcon icon={faRobot} />
                   </div>
-                  <div className={`progress-line ${currentStep >= 2 ? 'active' : ''}`} />
-                  <div className={`progress-dot ${currentStep >= 2 ? 'active' : ''}`}>
-                    {currentStep >= 2 && <FontAwesomeIcon icon={faCog} className="progress-icon" />}
-                  </div>
-                  <div className={`progress-line ${currentStep >= 3 ? 'active' : ''}`} />
-                  <div className={`progress-dot ${currentStep >= 3 ? 'active' : ''}`}>
-                    {currentStep >= 3 && <FontAwesomeIcon icon={faCheckCircle} className="progress-icon" />}
+                  <div className="agent-action-title">
+                    <h3>🤖 AI Agent Action Complete</h3>
+                    <p>Our AI agent has processed your document and taken action</p>
                   </div>
                 </div>
-                <div className="progress-label">{currentPhase}</div>
-                <div className="progress-details">{phaseDetails}</div>
+                <div className="agent-action-body">
+                  <div className="agent-action-summary">
+                    <FontAwesomeIcon icon={faEnvelope} className="email-icon" />
+                    <div className="action-text">
+                      {agentActionData.agent_action_confirmation.includes('email') ? (
+                        <span><strong>Email Sent!</strong> The agent has sent an email based on the document analysis.</span>
+                      ) : agentActionData.agent_action_confirmation.includes('ineligible') ? (
+                        <span><strong>Application Reviewed:</strong> The agent has determined this application requires review.</span>
+                      ) : (
+                        <span><strong>Action Taken:</strong> The agent has completed processing this document.</span>
+                      )}
+                    </div>
+                  </div>
+                  <details className="agent-action-details">
+                    <summary>View Details</summary>
+                    <div className="action-confirmation">
+                      <ReactMarkdown>{agentActionData.agent_action_confirmation}</ReactMarkdown>
+                    </div>
+                  </details>
+                </div>
               </div>
-            </>
-          )}
-          
-          {error && showError && !(currentStep < 3 || currentPhase !== 'Complete') && (
-            <div className="error-message">
-              {error}
-              <button 
-                onClick={() => {
-                  setError(null)
-                  setShowError(false)
-                  if (!streamConnected) connectToStream()
-                }}
-                className="upload-button"
-                style={{ marginLeft: '1rem' }}
-              >
-                Retry Connection
-              </button>
             </div>
           )}
 
-          {(partialAnalysis || analysisData) && (
-            <div style={{ position: 'relative' }}>
+          {currentPhase !== 'Complete' && currentPhase !== 'Failed' && currentPhase !== 'Error' && (
+            <div className="progress-container">
+              <div className="progress-steps">
+                <div className={`progress-dot ${currentStep >= 1 ? 'active' : ''}`}>
+                  {currentStep >= 1 && <FontAwesomeIcon icon={currentPhase === 'Upload Pending' ? faHourglassHalf : currentPhase === 'Classifying Document' ? faDatabase : faUpload} className="progress-icon" spin={currentPhase === 'Upload Pending' || currentPhase === 'Classifying Document'} />}
+                </div>
+                <div className={`progress-line ${currentStep >= 2 ? 'active' : ''}`} />
+                <div className={`progress-dot ${currentStep >= 2 ? 'active' : ''}`}>
+                  {currentStep >= 2 && <FontAwesomeIcon icon={currentPhase === 'Extracting Information' ? faSpinner : faFileAlt} className="progress-icon" spin={currentPhase === 'Extracting Information'} />}
+                </div>
+                <div className={`progress-line ${currentStep >= 3 ? 'active' : ''}`} />
+                <div className={`progress-dot ${currentStep >= 3 ? 'active' : ''}`}>
+                  {currentStep >= 3 && <FontAwesomeIcon icon={currentPhase === 'Analyzing Content' ? faSpinner : faClipboardCheck} className="progress-icon" spin={currentPhase === 'Analyzing Content'} />}
+                </div>
+                <div className={`progress-line ${currentStep >= 4 ? 'active' : ''}`} />
+                <div className={`progress-dot ${currentStep >= 4 ? 'active' : ''}`}>
+                  {currentStep >= 4 && <FontAwesomeIcon icon={currentPhase === 'Taking Action' ? faSpinner : faRobot} className="progress-icon" spin={currentPhase === 'Taking Action'} />}
+                </div>
+                <div className={`progress-line ${currentStep >= 5 ? 'active' : ''}`} />
+                <div className={`progress-dot ${currentStep >= 5 ? 'active' : ''}`}>
+                  {currentStep >= 5 && <FontAwesomeIcon icon={faCheckCircle} className="progress-icon" />}
+                </div>
+              </div>
+              <div className="progress-label">{currentPhase}</div>
+              <div className="progress-details">{phaseDetails}</div>
+            </div>
+          )}
+          
+          {isHowItWorksOpen && <HowItWorksDrawer onClose={() => setIsHowItWorksOpen(false)} />}
+
+          {(analysisData) && (
+            <div style={{ position: 'relative', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
               <Split 
                 className="split-view"
                 sizes={isAnalysisPanelOpen ? [50, 50] : [100, 0]}
-                minSize={[300, 0]}
+                minSize={isAnalysisPanelOpen ? [300,300] : [0,0] }
                 gutterSize={10}
+                direction="horizontal"
+                style={{ display: 'flex', flexGrow: 1, height: 'calc(100vh - 200px)' }}
               >
                 <div className={`pdf-viewer ${!isAnalysisPanelOpen ? 'expanded' : ''}`}>
-                  {pdfUrl && (
+          {isFetchingPdfUrl && (
+            <div className="loading-overlay">
+              <FontAwesomeIcon icon={faSpinner} spin size="3x" />
+              <p>Loading Document...</p>
+            </div>
+          )}
+          {!pdfDownloadUrl && !isFetchingPdfUrl && (
+            <div className="pdf-placeholder">
+              <FontAwesomeIcon icon={faFileAlt} size="3x" className="placeholder-icon" />
+              <p className="placeholder-text">PDF document will appear here once analysis is complete.</p>
+            </div>
+          )}
+          {pdfDownloadUrl && (
                     <>
-                      <Document
-                        file={pdfUrl}
-                        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                        loading={<div>Loading PDF...</div>}
-                        error={<div>Error loading PDF.</div>}
-                      >
-                        <div className="pdf-container">
-                          <div className="pdf-controls">
-                            <button 
-                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                              disabled={currentPage <= 1}
-                            >
+                      <div className="pdf-controls pdf-controls-absolute">
+                          <button onClick={() => setCurrentPageState(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>
                               <FontAwesomeIcon icon={faChevronLeft} /> Previous
-                            </button>
-                            <span>{`Page ${currentPage} of ${numPages}`}</span>
-                            <button 
-                              onClick={() => setCurrentPage(p => Math.min(numPages || p, p + 1))}
-                              disabled={currentPage >= (numPages || 1)}
-                            >
+                          </button>
+                          <span>{`Page ${currentPage} of ${numPages || '--'}`}</span>
+                          <button onClick={() => setCurrentPageState(p => Math.min(numPages || p, p + 1))} disabled={currentPage >= (numPages || 1)}>
                               Next <FontAwesomeIcon icon={faChevronRight} />
-                            </button>
-                            <div className="zoom-controls">
-                              <button 
-                                onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-                                disabled={scale <= 0.5}
-                              >
-                                <FontAwesomeIcon icon={faSearchMinus} />
+                          </button>
+                          <div className="zoom-controls">
+                              <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))} disabled={scale <= 0.5}>
+                                  <FontAwesomeIcon icon={faSearchMinus} />
                               </button>
                               <span className="zoom-level">{`${Math.round(scale * 100)}%`}</span>
-                              <button 
-                                onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
-                                disabled={scale >= 2.0}
-                              >
-                                <FontAwesomeIcon icon={faSearchPlus} />
+                              <button onClick={() => setScale(s => Math.min(2.0, s + 0.1))} disabled={scale >= 2.0}>
+                                  <FontAwesomeIcon icon={faSearchPlus} />
                               </button>
-                            </div>
                           </div>
-                          <Page 
-                            pageNumber={currentPage} 
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            scale={scale}
-                            width={pdfWidth}
-                          />
+                           <button onClick={() => fetchJobDetailsAndUpdateState()} title="Refresh Data"><FontAwesomeIcon icon={faSyncAlt} /></button>
+                           {pdfDownloadUrl && (<button onClick={() => { if (pdfBlob) { const url = URL.createObjectURL(pdfBlob); window.open(url)?.print(); } else if (pdfDownloadUrl) { window.open(pdfDownloadUrl)?.print(); } }} title="Print PDF"><FontAwesomeIcon icon={faPrint} /></button>)}
+                      </div>
+              <Document
+                file={pdfDownloadUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                        loading={<div className="pdf-loading">Loading PDF...</div>}
+                        error={<div className="pdf-loading">Error loading PDF.</div>}
+              >
+                        <div className="pdf-container">
+                           <Page 
+                              pageNumber={currentPage} 
+                              renderTextLayer={false}
+                              renderAnnotationLayer={false}
+                              scale={scale}
+                              width={pdfWidth}
+                            />
                         </div>
-                      </Document>
+              </Document>
                     </>
-                  )}
-                </div>
+          )}
+        </div>
 
                 <div className={`analysis-viewer ${!isAnalysisPanelOpen ? 'collapsed' : ''}`}>
                   <div className="tabs">
-                    <button 
-                      className={`tab-button ${activeTab === 'grouped' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('grouped')}
-                    >
-                      <FontAwesomeIcon icon={faFileAlt} /> Document Analysis
-                    </button>
-                    <button 
-                      className={`tab-button ${activeTab === 'underwriter' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('underwriter')}
-                    >
-                      <FontAwesomeIcon icon={faFileContract} /> Underwriter Analysis
-                    </button>
-                    <button 
-                      className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('chat')}
-                    >
-                      <FontAwesomeIcon icon={faComments} /> 
-                      Chat Assistant
+                    <button className={`tab-button ${activeTab === 'grouped' ? 'active' : ''}`} onClick={() => setActiveTab('grouped')}>
+                      <FontAwesomeIcon icon={faList} /> Document Analysis
+            </button>
+                    <button className={`tab-button ${activeTab === 'underwriter' ? 'active' : ''}`} onClick={() => setActiveTab('underwriter')}>
+                      <FontAwesomeIcon icon={faGavel} /> Underwriter Analysis
+            </button>
+                    <button className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
+                      <FontAwesomeIcon icon={faComments} /> Chat Assistant
                       {analysisData?.insurance_type && (
                         <span className={`chat-type-indicator ${analysisData.insurance_type === 'property_casualty' ? 'p-and-c' : 'life'}`}>
                           {analysisData.insurance_type === 'property_casualty' ? 'P&C' : 'Life'}
                         </span>
                       )}
-                    </button>
+            </button>
                   </div>
-
                   <div className="tab-content">
-                    {((): JSX.Element | null => {
-                      switch(activeTab) {
-                        case 'grouped':
-                          return renderGroupedAnalysis();
-                        case 'underwriter':
-                          return renderUnderwriterAnalysis();
-                        case 'chat':
-                          return (
-                            <div className="chat-interface">
-                              <div className="chat-messages">
-                                {messages.map(message => (
-                                  <div 
-                                    key={message.id} 
-                                    className={`chat-message ${message.sender}`}
-                                  >
-                                    <div className={`chat-avatar ${message.sender}`}>
-                                      {message.sender === 'user' ? 'U' : 'AI'}
-                                    </div>
-                                    <div className="chat-bubble">
-                                      {message.sender === 'user' ? (
-                                        message.text
-                                      ) : (
-                                        <ReactMarkdown 
-                                          remarkPlugins={[remarkGfm]}
-                                          components={{
-                                            a: ({href, children}) => (
-                                              <a 
-                                                href={href} 
-                                                onClick={handleLinkClick}
-                                                className="page-reference"
-                                              >
-                                                {children}
-                                              </a>
-                                            ),
-                                            p: ({children, ...props}) => (
-                                              <p style={markdownStyles.p} {...props}>{children}</p>
-                                            ),
-                                            h1: ({children, ...props}) => (
-                                              <h1 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h1>
-                                            ),
-                                            h2: ({children, ...props}) => (
-                                              <h2 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h2>
-                                            ),
-                                            h3: ({children, ...props}) => (
-                                              <h3 style={markdownStyles['h1,h2,h3,h4,h5,h6']} {...props}>{children}</h3>
-                                            ),
-                                            pre: ({node, ...props}) => <pre style={markdownStyles.pre} {...props} />,
-                                            code: ({node, ...props}) => <code style={markdownStyles.code} {...props} />,
-                                            table: ({node, ...props}) => <table style={markdownStyles.table} {...props} />,
-                                            th: ({node, ...props}) => <th style={markdownStyles['th,td']} {...props} />,
-                                            td: ({node, ...props}) => <td style={markdownStyles['th,td']} {...props} />,
-                                            blockquote: ({node, ...props}) => <blockquote style={markdownStyles.blockquote} {...props} />,
-                                          }}
-                                        >
-                                          {message.text}
-                                        </ReactMarkdown>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                                {isTyping && (
-                                  <div className="chat-message ai">
-                                    <div className="chat-avatar ai">AI</div>
-                                    <div className="chat-bubble">
-                                      Typing...
-                                    </div>
-                                  </div>
-                                )}
+                    {activeTab === 'grouped' && renderGroupedAnalysis()}
+                    {activeTab === 'underwriter' && renderUnderwriterAnalysis()}
+                    {activeTab === 'chat' && (
+                      <div className="chat-interface">
+                        <div className="chat-messages">
+                          {messages.map(message => (
+                            <div key={message.id} className={`chat-message ${message.sender}`}>
+                              <div className={`chat-avatar ${message.sender}`}>{message.sender === 'user' ? 'U' : 'AI'}</div>
+                              <div className="chat-bubble">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{...customMarkdownComponentsFromStyles, a: ({href, children}) => (<PageReference pageNum={href?.replace("/page/","") || "1"} text={children as string}/>) }}>{message.text}</ReactMarkdown>
                               </div>
-
-                              <div className="chat-input-container">
-                                <form className="chat-input-form" onSubmit={handleSendMessage}>
-                                  <textarea
-                                    className="chat-input"
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder="Ask me anything about the document..."
-                                    rows={1}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault()
-                                        handleSendMessage(e)
-                                      }
-                                    }}
-                                  />
-                                  <button 
-                                    type="submit" 
-                                    className="chat-send"
-                                    disabled={!newMessage.trim() || isTyping}
-                                  >
-                                    Send
-                                  </button>
-                                </form>
-                              </div>
-                            </div>
-                          );
-                        default:
-                          return null;
-                      }
-                    })()}
-                  </div>
-                </div>
+                    </div>
+                ))}
+                          {isTyping && (<div className="chat-message ai"><div className="chat-avatar ai">AI</div><div className="chat-bubble">Typing...</div></div>)}
+                        </div>
+                        <form className="chat-input-form" onSubmit={handleSendMessage}>
+                          <textarea className="chat-input" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Ask me anything about the document..." rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e);}}}/>
+                          <button type="submit" className="chat-send" disabled={!newMessage.trim() || isTyping}>Send</button>
+                        </form>
+                    </div>
+                )}
+            </div>
+          </div>
               </Split>
-              <button 
-                className="analysis-toggle"
-                onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
-                aria-label={isAnalysisPanelOpen ? "Hide Analysis" : "Show Analysis"}
-              >
+              <button className="analysis-toggle" onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)} aria-label={isAnalysisPanelOpen ? "Hide Analysis" : "Show Analysis"}>
                 <FontAwesomeIcon icon={isAnalysisPanelOpen ? faChevronLeft : faChevronRight} />
               </button>
             </div>
           )}
         </div>
-
-        {/* How It Works Drawer */}
-        {isHowItWorksOpen && <HowItWorksDrawer onClose={() => setIsHowItWorksOpen(false)} />}
       </NumPagesContext.Provider>
     </PageContext.Provider>
   )
