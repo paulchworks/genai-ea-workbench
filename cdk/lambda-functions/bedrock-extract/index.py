@@ -5,8 +5,6 @@ import io
 import urllib.parse
 import re
 import gc
-import time
-import random
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from datetime import datetime, timezone

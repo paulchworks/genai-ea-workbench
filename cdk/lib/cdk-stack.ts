@@ -578,7 +578,7 @@ export class CdkStack extends cdk.Stack {
       errorResponses: [
         {
           httpStatus: 404,
-          responseHttpStatus: 404,
+          responseHttpStatus: 200,
           responsePagePath: '/index.html',
         },
       ],

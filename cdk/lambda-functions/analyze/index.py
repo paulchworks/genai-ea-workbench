@@ -2,8 +2,6 @@ import json
 import boto3
 import os
 import re
-import time
-import random
 import traceback
 from botocore.config import Config
 from botocore.exceptions import ClientError
