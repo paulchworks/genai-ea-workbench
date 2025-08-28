@@ -331,38 +331,9 @@ def lambda_handler(event, context):
             model=model # Use the globally initialized model
         )
         
-        # Call agent with retry logic for Bedrock throttling
-        max_retries = 3
-        retry_count = 0
-        agent_response = None
+        # Call agent - let boto3 handle retries with adaptive mode
+        agent_response = uw_agent(agent_input_message)
         
-        while retry_count < max_retries:
-            try:
-                agent_response = uw_agent(agent_input_message)
-                break  # Success, exit retry loop
-            except Exception as agent_e:
-                retry_count += 1
-                error_str = str(agent_e).lower()
-                
-                # Check for throttling errors
-                if any(throttle_indicator in error_str for throttle_indicator in ['throttling', 'rate exceeded', 'too many requests', 'service unavailable']):
-                    if retry_count < max_retries:
-                        wait_time = 2 ** retry_count  # Exponential backoff
-                        print(f"Bedrock throttling detected for {document_identifier}, retry {retry_count}/{max_retries} after {wait_time}s")
-                        import time
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        print(f"Max retries exceeded for throttling on {document_identifier}")
-                        raise agent_e
-                else:
-                    # Non-throttling error, don't retry
-                    print(f"Non-throttling error in agent call for {document_identifier}: {agent_e}")
-                    raise agent_e
-        
-        if agent_response is None:
-            raise Exception("Agent failed to respond after retries")
-
         print(f"Agent response for {document_identifier}: {str(agent_response)}")
 
         lambda_output = {
