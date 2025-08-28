@@ -16,8 +16,7 @@ from PIL import Image, ImageOps
 bedrock_retry_config = Config(
     retries={
         'max_attempts': 10,
-        'mode': 'standard',  # Use standard mode for more predictable retries
-        'total_max_attempts': 10
+        'mode': 'adaptive'
     },
     max_pool_connections=50
 )
