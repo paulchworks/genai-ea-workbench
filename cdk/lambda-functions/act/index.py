@@ -1,6 +1,7 @@
 import json
 import os
 import boto3
+from botocore.config import Config
 from strands import Agent, tool
 from strands.models import BedrockModel # Added import
 from datetime import datetime, timezone # ADDED
@@ -11,13 +12,8 @@ S3_KEY_PREFIX = "agent_outputs/"
 JOBS_TABLE_NAME_ENV = os.environ.get('JOBS_TABLE_NAME') # ADDED
 
 # --- AWS SDK Clients --- 
-try:
-    s3_client = boto3.client('s3')
-    dynamodb_client = boto3.client('dynamodb') # ADDED
-except Exception as e:
-    print(f"Error initializing Boto3 clients: {e}")
-    s3_client = None
-    dynamodb_client = None # ADDED
+s3_client = boto3.client('s3')
+dynamodb_client = boto3.client('dynamodb')
 
 print(f"ActLambda initializing. Target S3 Bucket for outputs: {MOCK_OUTPUT_S3_BUCKET}. Jobs Table: {JOBS_TABLE_NAME_ENV}")
 
@@ -165,7 +161,19 @@ docs_default_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["DEFAULT_APP_TY
 # --- Step 2: Initialize Reusable Model Client ---
 # The model client is static and can be reused across invocations.
 try:
-    model = BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+    # Configure Bedrock client with retry settings
+    bedrock_config = Config(
+        retries={
+            'max_attempts': 10,
+            'mode': 'adaptive'
+        },
+        max_pool_connections=50
+    )
+    bedrock_client = boto3.client('bedrock-runtime', config=bedrock_config)
+    model = BedrockModel(
+        model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        client=bedrock_client
+    )
     print("BedrockModel initialized successfully.")
 except Exception as e:
     print(f"CRITICAL: Error initializing BedrockModel: {e}")
@@ -323,8 +331,9 @@ def lambda_handler(event, context):
             model=model # Use the globally initialized model
         )
         
+        # Call agent - let boto3 handle retries with adaptive mode
         agent_response = uw_agent(agent_input_message)
-
+        
         print(f"Agent response for {document_identifier}: {str(agent_response)}")
 
         lambda_output = {
@@ -363,8 +372,30 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print(f"ERROR: Unhandled exception during Lambda execution for {document_identifier if 'document_identifier' in locals() else 'Unknown Document'}: {str(e)}")
-        # Consider more specific error handling for production
+        error_msg = f"ERROR: Unhandled exception during Lambda execution for {document_identifier if 'document_identifier' in locals() else 'Unknown Document'}: {str(e)}"
+        print(error_msg)
+        
+        # Update DynamoDB status to FAILED if we have job_id
+        if 'job_id' in locals() and job_id and JOBS_TABLE_NAME_ENV:
+            try:
+                timestamp_now = datetime.now(timezone.utc).isoformat()
+                dynamodb_client.update_item(
+                    TableName=JOBS_TABLE_NAME_ENV,
+                    Key={'jobId': {'S': job_id}},
+                    UpdateExpression="SET #status_attr = :status_val, #actionTs = :actionTsVal",
+                    ExpressionAttributeNames={
+                        '#status_attr': 'status',
+                        '#actionTs': 'actionTimestamp'
+                    },
+                    ExpressionAttributeValues={
+                        ':status_val': {'S': 'FAILED'},
+                        ':actionTsVal': {'S': timestamp_now}
+                    }
+                )
+                print(f"Updated job {job_id} status to FAILED due to exception")
+            except Exception as ddb_e:
+                print(f"Error updating DynamoDB status to FAILED for job {job_id}: {str(ddb_e)}")
+        
         return {
             "statusCode": 500,
             "body": json.dumps({"error": f"Internal server error: {str(e)}"})

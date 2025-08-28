@@ -334,8 +334,8 @@ export class CdkStack extends cdk.Stack {
     const parallelExtract = new stepfunctions.Map(this, 'ParallelExtraction', {
       itemsPath: '$.batches.batchRanges',
       resultPath: '$.extractionResults',
-      maxConcurrency: 4,
-      parameters: {
+      maxConcurrency: 1,  // Set to 1 for Bedrock quota handling when processing multiple files
+      itemSelector: {
         'detail.$': '$.detail',
         'classification.$': '$.classification',
         'pages.$': '$$.Map.Item.Value',
@@ -379,7 +379,7 @@ export class CdkStack extends cdk.Stack {
     
     const stateMachine = new stepfunctions.StateMachine(this, 'DocumentProcessingWorkflow', {
       stateMachineName: 'ai-underwriting-workflow',
-      definition: classifyStep,
+      definitionBody: stepfunctions.DefinitionBody.fromChainable(classifyStep),
       timeout: cdk.Duration.minutes(60),
       // Add logging configuration
       logs: {
@@ -477,6 +477,7 @@ export class CdkStack extends cdk.Stack {
     // Documents resources
     const documentsResource = apiResource.addResource('documents');
     const uploadResource = documentsResource.addResource('upload');
+    const batchUploadResource = documentsResource.addResource('batch-upload');
     const statusParentResource = documentsResource.addResource('status');
     const statusResource = statusParentResource.addResource('{executionArn}');
     
@@ -498,6 +499,7 @@ export class CdkStack extends cdk.Stack {
     jobByIdResource.addMethod('GET', apiHandlerIntegration);
     documentUrlResource.addMethod('GET', apiHandlerIntegration);
     uploadResource.addMethod('POST', apiHandlerIntegration);
+    batchUploadResource.addMethod('POST', apiHandlerIntegration);
     statusResource.addMethod('GET', apiHandlerIntegration);
     chatByJobIdResource.addMethod('POST', chatLambdaIntegration);
 
@@ -558,7 +560,7 @@ export class CdkStack extends cdk.Stack {
     // Create CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
-        origin: new origins.S3Origin(websiteBucket, {
+        origin: origins.S3BucketOrigin.withOriginAccessIdentity(websiteBucket, {
           originAccessIdentity,
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -576,7 +578,7 @@ export class CdkStack extends cdk.Stack {
       errorResponses: [
         {
           httpStatus: 404,
-          responseHttpStatus: 404,
+          responseHttpStatus: 200,
           responsePagePath: '/index.html',
         },
       ],
@@ -847,6 +849,7 @@ export class CdkStack extends cdk.Stack {
     // Add suppression for API Gateway methods not using authorization
     const apiMethodPaths = [
       '/AWS-GENAI-UW-DEMO/UnderwritingApi/Default/api/documents/upload/POST/Resource',
+      '/AWS-GENAI-UW-DEMO/UnderwritingApi/Default/api/documents/batch-upload/POST/Resource',
       '/AWS-GENAI-UW-DEMO/UnderwritingApi/Default/api/documents/status/{executionArn}/GET/Resource',
       '/AWS-GENAI-UW-DEMO/UnderwritingApi/Default/api/jobs/{jobId}/document-url/GET/Resource',
       '/AWS-GENAI-UW-DEMO/UnderwritingApi/Default/api/jobs/{jobId}/GET/Resource',

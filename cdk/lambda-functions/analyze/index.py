@@ -3,11 +3,22 @@ import boto3
 import os
 import re
 import traceback
+from botocore.config import Config
+from botocore.exceptions import ClientError
 from datetime import datetime, timezone # ADDED
 
+# Configure retry settings for Bedrock client only
+bedrock_retry_config = Config(
+    retries={
+        'max_attempts': 10,
+        'mode': 'adaptive'
+    },
+    max_pool_connections=50
+)
+
 # Initialize AWS clients outside the handler for reuse
-bedrock_runtime = boto3.client(service_name='bedrock-runtime')
-dynamodb_client = boto3.client('dynamodb') # ADDED
+bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=bedrock_retry_config)
+dynamodb_client = boto3.client('dynamodb')
 # Environment variables
 DB_TABLE = os.environ.get('JOBS_TABLE_NAME')
 EXTRACTION_BUCKET = os.environ.get('EXTRACTION_BUCKET')
@@ -64,6 +75,9 @@ def validate_analysis_data(data, schema):
 
 def lambda_handler(event, context):
     print("[lambda_handler] Received event:", json.dumps(event))
+    
+    # Initialize analysis_json for error handling
+    analysis_json = {"error": True, "message": "Unknown error occurred"}
 
     # --- 1) Fetch & merge all S3-backed chunks ---
     print("[lambda_handler] Merging extractionResults via S3 pointers")

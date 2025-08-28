@@ -6,10 +6,21 @@ import io
 import urllib.parse
 from pdf2image import convert_from_path
 from datetime import datetime, timezone
+from botocore.config import Config
+
+# Configure retry settings for AWS clients
+# Configure retry settings for Bedrock client only
+bedrock_retry_config = Config(
+    retries={
+        'max_attempts': 10,
+        'mode': 'adaptive'
+    },
+    max_pool_connections=50
+)
 
 # Initialize AWS clients outside the handler for reuse
 s3 = boto3.client('s3')
-bedrock_runtime = boto3.client(service_name='bedrock-runtime')
+bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=bedrock_retry_config)
 dynamodb_client = boto3.client('dynamodb')
 
 def get_classification_prompt(insurance_type):
