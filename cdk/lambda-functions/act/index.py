@@ -11,21 +11,14 @@ MOCK_OUTPUT_S3_BUCKET = os.environ.get('MOCK_OUTPUT_S3_BUCKET')
 S3_KEY_PREFIX = "agent_outputs/"
 JOBS_TABLE_NAME_ENV = os.environ.get('JOBS_TABLE_NAME') # ADDED
 
-# --- AWS SDK Clients with retry configuration --- 
-retry_config = Config(
-    retries={
-        'max_attempts': 10,
-        'mode': 'adaptive'
-    }
-)
-
+# --- AWS SDK Clients --- 
 try:
-    s3_client = boto3.client('s3', config=retry_config)
-    dynamodb_client = boto3.client('dynamodb', config=retry_config) # ADDED
+    s3_client = boto3.client('s3')
+    dynamodb_client = boto3.client('dynamodb')
 except Exception as e:
     print(f"Error initializing Boto3 clients: {e}")
     s3_client = None
-    dynamodb_client = None # ADDED
+    dynamodb_client = None
 
 print(f"ActLambda initializing. Target S3 Bucket for outputs: {MOCK_OUTPUT_S3_BUCKET}. Jobs Table: {JOBS_TABLE_NAME_ENV}")
 

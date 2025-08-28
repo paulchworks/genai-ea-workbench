@@ -12,7 +12,8 @@ from pdf2image import pdfinfo_from_path, convert_from_path
 from PIL import Image, ImageOps
 
 # Configure retry settings for AWS clients
-retry_config = Config(
+# Configure retry settings for Bedrock client only
+bedrock_retry_config = Config(
     retries={
         'max_attempts': 10,
         'mode': 'standard',  # Use standard mode for more predictable retries
@@ -22,9 +23,9 @@ retry_config = Config(
 )
 
 # Initialize AWS clients outside the handler for reuse
-s3 = boto3.client('s3', config=retry_config)
-bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=retry_config)
-dynamodb_client = boto3.client('dynamodb', config=retry_config)
+s3 = boto3.client('s3')
+bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=bedrock_retry_config)
+dynamodb_client = boto3.client('dynamodb')
 JOBS_TABLE = os.environ.get('JOBS_TABLE_NAME')
 BATCH_SIZE = 1
 DPI = 150

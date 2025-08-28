@@ -7,8 +7,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from datetime import datetime, timezone # ADDED
 
-# Configure retry settings for AWS clients
-retry_config = Config(
+# Configure retry settings for Bedrock client only
+bedrock_retry_config = Config(
     retries={
         'max_attempts': 10,
         'mode': 'adaptive'
@@ -17,15 +17,15 @@ retry_config = Config(
 )
 
 # Initialize AWS clients outside the handler for reuse
-bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=retry_config)
-dynamodb_client = boto3.client('dynamodb', config=retry_config) # ADDED
+bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=bedrock_retry_config)
+dynamodb_client = boto3.client('dynamodb')
 # Environment variables
 DB_TABLE = os.environ.get('JOBS_TABLE_NAME')
 EXTRACTION_BUCKET = os.environ.get('EXTRACTION_BUCKET')
 
 # Reuse a single S3 client for fetching chunk files
 def get_s3_client():
-    return boto3.client('s3', config=retry_config)
+    return boto3.client('s3')
 
 
 # Define the expected output schema for this analysis lambda

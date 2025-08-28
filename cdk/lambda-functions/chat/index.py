@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from botocore.config import Config
 
 # Configure retry settings for AWS clients
-retry_config = Config(
+# Configure retry settings for Bedrock client only
+bedrock_retry_config = Config(
     retries={
         'max_attempts': 10,
         'mode': 'adaptive'
@@ -15,8 +16,8 @@ retry_config = Config(
 )
 
 # Initialize AWS clients
-dynamodb = boto3.client('dynamodb', config=retry_config)
-bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=retry_config)
+dynamodb = boto3.client('dynamodb')
+bedrock_runtime = boto3.client(service_name='bedrock-runtime', config=bedrock_retry_config)
 
 # Environment variables
 JOBS_TABLE_NAME = os.environ.get('JOBS_TABLE_NAME')
