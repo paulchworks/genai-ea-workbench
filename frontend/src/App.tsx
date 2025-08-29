@@ -517,7 +517,7 @@ function JobsList() {
 
   const groupJobsByBatch = (jobs: Job[]) => {
     const grouped = jobs.reduce((acc, job) => {
-      const batchId = job.batchId || 'no-batch';
+      const batchId = job.batchId; // All jobs now have batchId
       if (!acc[batchId]) {
         acc[batchId] = [];
       }
@@ -528,7 +528,6 @@ function JobsList() {
   };
 
   const getShortBatchId = (batchId: string) => {
-    if (batchId === 'no-batch') return 'Individual';
     return batchId.slice(-8);
   };
 

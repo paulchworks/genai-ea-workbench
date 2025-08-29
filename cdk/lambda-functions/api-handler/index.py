@@ -266,8 +266,9 @@ def generate_upload_url(event):
         if not filename:
             return {'error': 'Missing filename in request'}
             
-        # Generate a unique job ID
+        # Generate a unique job ID and batch ID
         job_id = str(uuid.uuid4())
+        batch_id = str(uuid.uuid4())
         
         # Create S3 key with path structure
         s3_key = f"uploads/{job_id}/{filename}"
@@ -289,6 +290,7 @@ def generate_upload_url(event):
             TableName=JOBS_TABLE_NAME,
             Item={
                 'jobId': {'S': job_id},
+                'batchId': {'S': batch_id},
                 'status': {'S': 'CREATED'},
                 'uploadTimestamp': {'S': timestamp_now},
                 'originalFilename': {'S': filename},
@@ -299,6 +301,7 @@ def generate_upload_url(event):
         
         return {
             'jobId': job_id,
+            'batchId': batch_id,
             'uploadUrl': presigned_url,
             's3Key': s3_key,
             'status': 'CREATED',
