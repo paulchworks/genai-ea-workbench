@@ -195,4 +195,10 @@ The frontend can be run locally for development and testing. Follow these steps:
 ## 🙏 Contributors
 Thanks to all the contributors for building, reviewing and testing.
 
+- Tony Howell
+- Charles Meruwoma
+- Dhaval Shah
+- Nikolas Lecce
+- Mark Oates
+
 [![Contributors](https://contrib.rocks/image?repo=aws-samples/sample-genai-underwriting-workbench-demo)](https://github.com/aws-samples/sample-genai-underwriting-workbench-demo/graphs/contributors)
