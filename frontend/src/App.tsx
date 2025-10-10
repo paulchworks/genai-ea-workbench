@@ -206,10 +206,10 @@ function UploadPage() {
           <span className="header-logo">
             <FontAwesomeIcon icon={faShieldAlt} />
           </span>
-          GenAI Underwriting Workbench
+          GenAI Enterprise Architecture Workbench
         </h1>
         <div className="header-controls">
-          <div className="header-insurance-toggle">
+          {/*<div className="header-insurance-toggle">
             <label className={`option ${insuranceType === 'life' ? 'selected' : ''}`}>
               <input 
                 type="radio" 
@@ -232,7 +232,7 @@ function UploadPage() {
               <span className="option-icon"><FontAwesomeIcon icon={faHome} /></span>
               <span>P&C</span>
             </label>
-          </div>
+          </div>*/}
           <button
             type="button"
             onClick={() => navigate('/jobs')}
@@ -247,13 +247,13 @@ function UploadPage() {
       <div className="description-section">
         <h2>
           {insuranceType === 'life' 
-            ? 'Streamline Your Life Insurance Underwriting' 
-            : 'Streamline Your Property & Casualty Insurance Underwriting'}
+            ? 'Streamline Your Architecture Review & Documentation' 
+            : 'Streamline Your Architecture Review & Documentation'}
         </h2>
         <p className="intro-text">
           {insuranceType === 'life' 
-            ? <span>TestTransform complex life insurance applications and medical documents into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>Claude 3.7 Sonnet</strong>. Purpose-built for life insurance underwriters to automatically extract, analyze, and evaluate risk factors from application packets.</span>
-            : <span>TestTransform complex property & casualty insurance applications and ACORD forms into actionable insights using advanced AI analysis powered by <strong>Amazon Bedrock</strong> and <strong>Claude 3.7 Sonnet</strong>. Purpose-built for P&C insurance underwriters to automatically extract, analyze, and evaluate property risk factors from application packets.</span>}
+            ? <span>Accelerate safe delivery: reduce ARB cycle time by <strong>60–80%</strong>, lift standards compliance to <strong>~100% coverage</strong>, and prevent costly rework by catching risks pre-funding.</span>
+            : <span>Accelerate safe delivery: reduce ARB cycle time by <strong>60–80%</strong>, lift standards compliance to <strong>~100% coverage</strong>, and prevent costly rework by catching risks pre-funding.</span>}
         </p>
         
         <div className="features-grid">
@@ -265,15 +265,15 @@ function UploadPage() {
             <ul>
               {insuranceType === 'life' ? (
                 <>
-                  <li>Process complete life insurance application packets</li>
-                  <li>Extract medical history and risk factors</li>
-                  <li>Automatic classification of APS and lab reports</li>
+                  <li><strong>Process end-to-end architecture packs</strong> (HLD, DFD, IaC, DPIA) into a single, auditable review workspace.</li>
+                  <li><strong>Extract material risks and assumptions</strong> across security, privacy, reliability, and cost—mapped to enterprise standards.</li>
+                  <li><strong>Auto-classify artifacts and evidence</strong> to ensure complete submissions, consistent checks, and faster approvals.</li>
                 </>
               ) : (
                 <>
-                  <li>Process complete P&C insurance application packets</li>
-                  <li>Extract property details and risk factors</li>
-                  <li>Automatic classification of ACORD forms</li>
+                  <li><strong>Process end-to-end architecture packs</strong> (HLD, DFD, IaC, DPIA) into a single, auditable review workspace.</li>
+                  <li><strong>Extract material risks and assumptions</strong> across security, privacy, reliability, and cost—mapped to enterprise standards.</li>
+                  <li><strong>Auto-classify artifacts and evidence</strong> to ensure complete submissions, consistent checks, and faster approvals.</li>
                 </>
               )}
             </ul>
@@ -282,22 +282,22 @@ function UploadPage() {
           <div className="feature-card">
             <h3>
               <FontAwesomeIcon icon={insuranceType === 'life' ? faStethoscope : faHome} />
-              {insuranceType === 'life' ? 'Underwriter Analysis' : 'Property Assessment'}
+              {insuranceType === 'life' ? 'Architecture Assessment' : 'Architecture Assessment'}
             </h3>
             <ul>
               {insuranceType === 'life' ? (
                 <>
-                  <li>AI-driven mortality risk assessment</li>
-                  <li>Medical history timeline construction</li>
-                  <li>Cross-reference discrepancies across documents</li>
-                  <li>Automated medical condition evaluation</li>
+                  <li><strong>AI-driven architecture risk assessment</strong> across security, reliability, cost, and compliance—prioritized with actionable fixes.</li>
+                  <li><strong>Solution timeline construction</strong> that reconstructs scope, data flows, and design changes from submitted artifacts.</li>
+                  <li><strong>Cross-document discrepancy detection</strong> between HLD, IaC, BOM, and DPIA to catch issues before build.</li>
+                  <li><strong>Automated control evaluation</strong> against enterprise standards (Well-Architected, IM8, PDPA, MAS-TRM) with clause-level citations.</li>
                 </>
               ) : (
                 <>
-                  <li>AI-driven property risk assessment</li>
-                  <li>Detailed property characteristics analysis</li>
-                  <li>Cross-reference discrepancies across documents</li>
-                  <li>Environmental and geographical risk evaluation</li>
+                  <li><strong>AI-driven architecture risk assessment</strong> across security, reliability, cost, and compliance—prioritized with actionable fixes.</li>
+                  <li><strong>Solution timeline construction</strong> that reconstructs scope, data flows, and design changes from submitted artifacts.</li>
+                  <li><strong>Cross-document discrepancy detection</strong> between HLD, IaC, BOM, and DPIA to catch issues before build.</li>
+                  <li><strong>Automated control evaluation</strong> against enterprise standards (Well-Architected, IM8, PDPA, MAS-TRM) with clause-level citations.</li>
                 </>
               )}
             </ul>
@@ -311,15 +311,15 @@ function UploadPage() {
             <ul>
               {insuranceType === 'life' ? (
                 <>
-                  <li>Query complex medical histories</li>
-                  <li>Instant access to policy-relevant details</li>
-                  <li>Navigate multi-document applications</li>
+                  <li><strong>Query complex architecture histories</strong>—ask natural-language questions across prior designs, decisions, and changes.</li>
+                  <li><strong>Instant access to policy-relevant details</strong>—surface applicable clauses, required controls, and exceptions for faster approval.</li>
+                  <li><strong>Navigate multi-document submissions</strong>—jump between HLD, DFD, IaC, BOM, and DPIA with linked evidence and citations.</li>
                 </>
               ) : (
                 <>
-                  <li>Query property details and risk factors</li>
-                  <li>Instant access to policy-relevant details</li>
-                  <li>Navigate complex ACORD forms</li>
+                  <li><strong>Query complex architecture histories</strong>—ask natural-language questions across prior designs, decisions, and changes.</li>
+                  <li><strong>Instant access to policy-relevant details</strong>—surface applicable clauses, required controls, and exceptions for faster approval.</li>
+                  <li><strong>Navigate multi-document submissions</strong>—jump between HLD, DFD, IaC, BOM, and DPIA with linked evidence and citations.</li>
                 </>
               )}
             </ul>
@@ -331,23 +331,41 @@ function UploadPage() {
           <div className="document-types">
             {insuranceType === 'life' ? (
               <>
-                <span className="document-type">Life Insurance Applications</span>
-                <span className="document-type">Attending Physician Statements (APS)</span>
-                <span className="document-type">Lab Reports</span>
-                <span className="document-type">Pharmacy Records</span>
-                <span className="document-type">Financial Disclosures</span>
-                <span className="document-type">Medical History Questionnaires</span>
-                <span className="document-type">Supplemental Forms</span>
+                <span className="document-type">Architecture Proposal / Solution Overview</span>
+                <span className="document-type">High-Level Design (HLD)</span>
+                <span className="document-type">Low-Level Design (LLD)</span>
+                <span className="document-type">Data Flow / Sequence / Component Diagrams</span>
+                <span className="document-type">Infrastructure as Code (CloudFormation / CDK / Terraform)</span>
+                <span className="document-type">Network & Security Architecture (VPC, IAM, SGs, KMS)</span>
+                <span className="document-type">Threat Model & Security Controls Matrix</span>
+                <span className="document-type">Privacy / DPIA / PDPA Assessment</span>
+                <span className="document-type">Architecture Decision Records (ADRs)</span>
+                <span className="document-type">Bill of Materials & Cost Estimates</span>
+                <span className="document-type">Operational Runbooks / SLOs / Monitoring Plans</span>
+                <span className="document-type">Disaster Recovery & Backup (RTO/RPO)</span>
+                <span className="document-type">API Specs & Integration Contracts (OpenAPI)</span>
+                <span className="document-type">Data Models / ERDs / Classification</span>
+                <span className="document-type">Compliance Evidence (Well-Architected, IM8, MAS-TRM)</span>
+                <span className="document-type">Exception Requests / Risk Register Entries</span>
               </>
             ) : (
               <>
-                <span className="document-type">ACORD Forms</span>
-                <span className="document-type">Property Inspections</span>
-                <span className="document-type">Claims History</span>
-                <span className="document-type">Property Valuations</span>
-                <span className="document-type">Flood Zone Certificates</span>
-                <span className="document-type">Building Code Compliance</span>
-                <span className="document-type">Security Documentation</span>
+                <span className="document-type">Architecture Proposal / Solution Overview</span>
+                <span className="document-type">High-Level Design (HLD)</span>
+                <span className="document-type">Low-Level Design (LLD)</span>
+                <span className="document-type">Data Flow / Sequence / Component Diagrams</span>
+                <span className="document-type">Infrastructure as Code (CloudFormation / CDK / Terraform)</span>
+                <span className="document-type">Network & Security Architecture (VPC, IAM, SGs, KMS)</span>
+                <span className="document-type">Threat Model & Security Controls Matrix</span>
+                <span className="document-type">Privacy / DPIA / PDPA Assessment</span>
+                <span className="document-type">Architecture Decision Records (ADRs)</span>
+                <span className="document-type">Bill of Materials & Cost Estimates</span>
+                <span className="document-type">Operational Runbooks / SLOs / Monitoring Plans</span>
+                <span className="document-type">Disaster Recovery & Backup (RTO/RPO)</span>
+                <span className="document-type">API Specs & Integration Contracts (OpenAPI)</span>
+                <span className="document-type">Data Models / ERDs / Classification</span>
+                <span className="document-type">Compliance Evidence (Well-Architected, IM8, MAS-TRM)</span>
+                <span className="document-type">Exception Requests / Risk Register Entries</span>
               </>
             )}
             <span className="document-type">And More</span>
@@ -361,6 +379,7 @@ function UploadPage() {
           Upload Documents
         </h2>
         
+        {/*
         <div className="insurance-type-selector">
           <h3>Insurance Type</h3>
           <div className="insurance-options">
@@ -388,6 +407,7 @@ function UploadPage() {
             </label>
           </div>
         </div>
+        */}
         
         <div 
           className={`file-drop-zone ${files.length > 0 ? 'has-files' : ''}`}
