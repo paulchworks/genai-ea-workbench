@@ -21,14 +21,14 @@ print(f"ActLambda initializing. Target S3 Bucket for outputs: {MOCK_OUTPUT_S3_BU
 @tool
 def send_ineligibility_notice_tool(document_identifier: str, reason_for_ineligibility: str) -> str:
     """Records that an application (identified by its document_identifier) has been deemed ineligible.
-    Use this tool when an application clearly violates underwriting policy and cannot proceed.
+    Use this tool when an application clearly violates TOGAF, SWEBOK and CISSP Architecture Standards and cannot proceed.
 
     Args:
         document_identifier (str): The unique identifier of the document/application (e.g., S3 object key).
         reason_for_ineligibility (str): A clear, concise reason explaining why the application is ineligible.
     Returns:
         str: A confirmation message indicating the action was recorded.
-    """
+    """ 
     if not s3_client or not MOCK_OUTPUT_S3_BUCKET:
         error_msg = "S3 client or MOCK_OUTPUT_S3_BUCKET not configured for send_ineligibility_notice_tool."
         print(f"ERROR: {error_msg}")
@@ -64,7 +64,7 @@ def request_supporting_documents_tool(document_identifier: str, recipient_email:
 
     Args:
         document_identifier (str): The unique identifier of the document/application (e.g., S3 object key).
-        recipient_email (str): The email address of the recipient (e.g., applicant or broker).
+        recipient_email (str): The email address of the recipient (e.g., applicant or project manager).
         documents_to_request (list[str]): A list of specific document names that are being requested.
         email_body (str): The full, polite body of the email requesting the documents, which you MUST generate.
     Returns:
@@ -102,60 +102,73 @@ def request_supporting_documents_tool(document_identifier: str, recipient_email:
 
 # --- Step 2: Configure Strands Agent (System Prompt & Initialization) ---
 SUPPORTING_DOCUMENTS_MAP = {
-    # Property & Casualty documents
-    "COMMERCIAL_PROPERTY_APPLICATION": [
-        "Proof of Ownership",
-        "Latest Audited Financial Statements (past 2 years)",
-        "Property Inspection Report (dated within last 12 months)",
-        "Existing Insurance Policy Declarations Page"
+    # New Solution / System Introduction
+    "SOLUTION_ARCHITECTURE_PROPOSAL": [
+        "Business Problem Statement & Objectives",
+        "High-Level Solution Overview (1–2 pages)",
+        "Architecture Diagram (Current & Target State)",
+        "Key Capabilities and Functional Scope",
+        "Non-Functional Requirements (Performance, Availability, Scalability)"
     ],
-    "GENERAL_LIABILITY_APP_V2": [
-        "Business License Copy",
-        "Prior Claims History Report (5 years)",
-        "Safety Program Manual/Overview"
+
+    # Changes to existing systems (Enhancements / Feature Drops)
+    "ARCHITECTURE_CHANGE_REQUEST": [
+        "Change Description & Rationale",
+        "Updated Architecture / Data Flow Diagram",
+        "Affected Systems and Interfaces",
+        "Impact Assessment (Performance, Cost, Compliance)",
+        "Rollback / Contingency Plan"
     ],
-    "ACORD_FORM": [
-        "Completed ACORD Forms (all sections)",
-        "Property Valuation Documentation",
-        "Loss Run Reports (3 years)",
-        "Business Continuity Plan"
+
+    # Cloud, Hybrid, or Third-Party Integrations
+    "INTEGRATION_DESIGN_SPECIFICATION": [
+        "Sequence / Flow Diagrams for API or Event Flows",
+        "Authentication & Authorization Model (IAM / RBAC)",
+        "Data Contract Schema (Input/Output Payloads)",
+        "Error Handling & Retry Strategy",
+        "Logging / Observability Plan"
     ],
-    # Life insurance documents
-    "LIFE_INSURANCE_APPLICATION": [
-        "Valid Government ID",
-        "Medical Records Release Form",
-        "Recent Physical Exam Results (within 12 months)",
-        "Financial Justification for Coverage Amount",
-        "Blood Test and Urinalysis Results (if not completed)"
+
+    # Security & Compliance Evaluation
+    "SECURITY_THREAT_MODEL": [
+        "Data Classification & Sensitivity Assessment",
+        "Threat Model (e.g., STRIDE or MITRE mapping)",
+        "Security Controls & Countermeasures",
+        "Vulnerability & Penetration Testing Plans",
+        "Encryption & Key Management Strategy"
     ],
-    "MEDICAL_REPORT": [
-        "Complete Medical History for the Past 5 Years",
-        "Specialist Consultation Notes",
-        "Current Medication List",
-        "Recent Lab Test Results"
+
+    # Infrastructure / Cloud Resource Designs
+    "INFRASTRUCTURE_DEPLOYMENT_MODEL": [
+        "Environment Architecture Diagram (Network / VPC / Subnets)",
+        "Compute, Storage & Database Sizing Justification",
+        "High-Availability & Disaster Recovery Design",
+        "Infrastructure-as-Code References (e.g., CDK/Terraform/CloudFormation)",
+        "Cost Estimate & Scaling Strategy"
     ],
-    "ATTENDING_PHYSICIAN_STATEMENT": [
-        "Additional Medical Records",
-        "Specialist Reports Referenced in APS",
-        "Treatment Plan Documentation",
-        "Follow-up Appointment Schedule"
+
+    # Vendor or SaaS solution intake (e.g., Workato, Third-party OCR, etc.)
+    "VENDOR_SOLUTION_EVALUATION": [
+        "Vendor Product Overview & Architecture",
+        "Data Residency & Compliance Certificates (ISO / SOC / MTCS)",
+        "Integration Points & API Documentation",
+        "Support Model & SLA Agreements",
+        "Exit Strategy / Mitigation for Vendor Lock-In"
     ],
-    "LAB_REPORT": [
-        "Previous Lab Results for Comparison",
-        "Physician's Interpretation of Results",
-        "Prescription Records Related to Conditions"
-    ],
+
+    # Default fallback when application type unknown
     "DEFAULT_APP_TYPE": [
-        "Valid Government-Issued Identification Document",
-        "Proof of Address (e.g., utility bill)"
+        "Problem Statement",
+        "High-Level Architecture Diagram",
+        "Key Risks and Open Questions"
     ]
 }
 
 # Create document strings for prompt formatting
-docs_comm_prop_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["COMMERCIAL_PROPERTY_APPLICATION"])
-docs_gen_liab_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["GENERAL_LIABILITY_APP_V2"])
-docs_life_app_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["LIFE_INSURANCE_APPLICATION"])
-docs_medical_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["MEDICAL_REPORT"])
+docs_comm_prop_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["SOLUTION_ARCHITECTURE_PROPOSAL"])
+docs_gen_liab_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["INFRASTRUCTURE_DEPLOYMENT_MODEL"])
+docs_life_app_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["INTEGRATION_DESIGN_SPECIFICATION"])
+docs_medical_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["SECURITY_THREAT_MODEL"])
 docs_default_str = "\n- " + "\n- ".join(SUPPORTING_DOCUMENTS_MAP["DEFAULT_APP_TYPE"])
 
 # --- Step 2: Initialize Reusable Model Client ---
@@ -183,8 +196,8 @@ def get_agent_system_prompt(insurance_type):
     """Get the appropriate agent system prompt based on insurance type"""
     
     # Define common parts of the prompt
-    common_intro = """You are an AI Underwriting Assistant responsible for initial application triage. 
-Your task is to review an insurance application's extracted data (the user message will provide a 'document_identifier' and the application data) and decide on an appropriate action using ONE of the available tools.
+    common_intro = """You are an AI Enterprise Architect Assistant responsible for initial architecture review triage. 
+Your task is to review a project application's extracted data (the user message will provide a 'document_identifier' and the application data) and decide on an appropriate action using ONE of the available tools.
 
 Available Tools:
 1.  `send_ineligibility_notice_tool`: Use this if the application is clearly ineligible based on the rules below.
@@ -192,11 +205,11 @@ Available Tools:
     
     # Insurance-type specific rules
     if insurance_type == "life":
-        ineligibility_rules = """**Ineligibility Rules (Strict - check these first. If any rule matches, the application is ineligible):**
--   For application type "LIFE_INSURANCE_APPLICATION":
-    -   If the applicant has any history of cancer diagnosed within the last 3 years, they are INELIGIBLE. State 'recent cancer diagnosis' as the reason for ineligibility.
-    -   If the applicant's current age is over 85, they are INELIGIBLE. State 'age exceeds maximum limit' as the reason for ineligibility.
-    -   If the applicant has a history of heart attack or stroke within the last 12 months, they are INELIGIBLE. State 'recent cardiac/stroke event' as the reason for ineligibility.
+        ineligibility_rules = """**Ineligibility Rules (Strict - check these first. If any rule matches, the architecture proposal is ineligible for approval):**
+-   For application type "SOLUTION_ARCHITECTURE_PROPOSAL":
+    -   If the proposed solution includes the use of any unapproved, deprecated, or banned technology components, it is INELIGIBLE. State 'use of non-approved technology stack' as the reason for ineligibility.
+    -   If the solution handles personal, confidential, or regulated data but does not provide a defined data protection model (e.g., encryption, data classification, access controls), it is INELIGIBLE. State 'missing data protection controls' as the reason for ineligibility.
+    -   If there is no identified system owner or accountable business sponsor, the proposal is INELIGIBLE. State 'no accountable system owner' as the reason for ineligibility.
 -   For any application type:
     -   If `applicant_details.sanctioned_entity_status` is "Positive" or "MatchFound", it is INELIGIBLE. State 'sanctioned entity match' as the reason for ineligibility.
     -   If an `application_details.requested_policy_start_date` is provided and it is in the past, it is INELIGIBLE. State 'past policy start date' as the reason for ineligibility."""
@@ -219,8 +232,8 @@ If none of the ineligibility rules are met, you MUST use the `request_supporting
     # Add the appropriate document lists based on insurance type
     if insurance_type == "life":
         docs_map = f"""
-    -   For "LIFE_INSURANCE_APPLICATION", request: {docs_life_app_str}
-    -   For "MEDICAL_REPORT", request: {docs_medical_str}
+    -   For "SOLUTION_ARCHITECTURE_PROPOSAL", request: {docs_life_app_str}
+    -   For "INFRASTRUCTURE_DEPLOYMENT_MODEL", request: {docs_medical_str}
     -   For any other `application_type`, use this default list: {docs_default_str}"""
     else:  # property_casualty
         docs_map = f"""
@@ -233,7 +246,7 @@ If none of the ineligibility rules are met, you MUST use the `request_supporting
     - Start with a greeting (e.g., "Dear Applicant,").
     - State that the application (mentioning the `document_identifier`) has been received and requires the listed additional documents to proceed with the review.
     - Clearly list each required document in the `documents_to_request` parameter of the tool (this will be used by the tool). In your `email_body` that you draft, also list these documents, preferably using bullet points (each document on a new line, preceded by a hyphen and a space, e.g., "- Document Name").
-    - Conclude the email professionally (e.g., "Sincerely, Underwriting Department").
+    - Conclude the email professionally (e.g., "Sincerely, DTO EA Department").
 5.  Ensure the `document_identifier` (from the user message) and all other required arguments are passed to the `request_supporting_documents_tool`.
 
 Always choose exactly one tool. Do not ask clarifying questions. Make your decision based solely on the rules and data provided in the user message.
@@ -309,7 +322,7 @@ def lambda_handler(event, context):
         print(f"Processing Document Identifier: {document_identifier}, Document Type: {document_type}")
 
         agent_input_message = (
-            f"Triage the following insurance application.\n"
+            f"Triage the following Architecture Review application.\n"
             f"Document Identifier: {document_identifier}\n"
             f"Application Type: {document_type}\n"
             f"Extracted Data: {json.dumps(extracted_data, indent=2)}"
