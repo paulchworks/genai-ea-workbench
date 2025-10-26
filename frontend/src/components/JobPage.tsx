@@ -534,7 +534,7 @@ export function JobPage({ jobId }: JobPageProps) {
         }
       } else {
         // Fallback to legacy fields if analysisOutputJsonStr is not available
-        console.log("Using legacy fields for underwriter analysis");
+        console.log("Using legacy fields for architecture analysis");
         underwriterAnalysisTransformed = {
           RISK_ASSESSMENT: jobApiData.identified_risks 
             ? jobApiData.identified_risks.map(r => `- ${r.description} (Severity: ${r.severity || 'N/A'})${r.page_references && r.page_references.length > 0 ? ` (Pages: ${r.page_references.join(', ')})` : ''}`).join("\n") 
