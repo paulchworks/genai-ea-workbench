@@ -702,9 +702,9 @@ export function JobPage({ jobId }: JobPageProps) {
       const type = analysisData.insurance_type;
       let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
       if (type === 'property_casualty') {
-        greeting = "Hello! I'm your Property & Casualty insurance underwriting assistant. I've analyzed this document and can help with questions about property details, risk factors, and coverage considerations.";
+        greeting = "Hello! I'm your PArchitecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
       } else if (type === 'life') {
-        greeting = "Hello! I'm your Life Insurance underwriting assistant. I've analyzed this document and can help with questions about medical history, risk factors, and policy considerations.";
+        greeting = "Hello! I'm your PArchitecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
       }
       setMessages([{ id: '1', text: greeting, sender: 'ai', timestamp: new Date() }]);
     } else if (!isLoadingJobDetails && !analysisData?.insurance_type) {
@@ -803,8 +803,8 @@ export function JobPage({ jobId }: JobPageProps) {
   const renderUnderwriterAnalysis = () => {
     const localAnalysisData = analysisData;
     if (!localAnalysisData?.underwriter_analysis) {
-      if (isLoadingJobDetails || currentPhase !== 'Complete') return <p>Loading underwriter analysis...</p>;
-      return <p>No underwriter analysis available.</p>;
+      if (isLoadingJobDetails || currentPhase !== 'Complete') return <p>Loading architecture analysis...</p>;
+      return <p>No architecture analysis available.</p>;
     }
     
     interface SectionConfigItem {
@@ -934,9 +934,9 @@ export function JobPage({ jobId }: JobPageProps) {
               {analysisData && (
                 <div className="insurance-type-badge">
                   {analysisData.insurance_type === 'property_casualty' ? (
-                    <span className="badge p-and-c"><FontAwesomeIcon icon={faHome} /> Property & Casualty</span>
+                    <span className="badge p-and-c"><FontAwesomeIcon icon={faHome} /> Architecture Review</span>
                   ) : (
-                    <span className="badge life"><FontAwesomeIcon icon={faBriefcaseMedical} /> Life Insurance</span>
+                    <span className="badge life"><FontAwesomeIcon icon={faBriefcaseMedical} /> Architecture Review</span>
             )}
                 </div>
               )}
@@ -1088,7 +1088,7 @@ export function JobPage({ jobId }: JobPageProps) {
                       <FontAwesomeIcon icon={faList} /> Document Analysis
             </button>
                     <button className={`tab-button ${activeTab === 'underwriter' ? 'active' : ''}`} onClick={() => setActiveTab('underwriter')}>
-                      <FontAwesomeIcon icon={faGavel} /> Underwriter Analysis
+                      <FontAwesomeIcon icon={faGavel} /> Architecture Analysis
             </button>
                     <button className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>
                       <FontAwesomeIcon icon={faComments} /> Chat Assistant
