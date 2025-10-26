@@ -702,9 +702,9 @@ export function JobPage({ jobId }: JobPageProps) {
       const type = analysisData.insurance_type;
       let greeting = "Hi! I'm your AI assistant. I've analyzed this document and can help answer any questions you have about it.";
       if (type === 'property_casualty') {
-        greeting = "Hello! I'm your PArchitecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
+        greeting = "Hello! I'm your Architecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
       } else if (type === 'life') {
-        greeting = "Hello! I'm your PArchitecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
+        greeting = "Hello! I'm your Architecture Review assistant. I've analyzed this document and can help with questions about security, reliability and reusability considerations.";
       }
       setMessages([{ id: '1', text: greeting, sender: 'ai', timestamp: new Date() }]);
     } else if (!isLoadingJobDetails && !analysisData?.insurance_type) {
