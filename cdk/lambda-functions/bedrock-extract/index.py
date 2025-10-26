@@ -34,9 +34,9 @@ def get_extraction_prompt(document_type, insurance_type, page_numbers, previous_
     """Get the appropriate extraction prompt for a batch of pages, considering previous analysis."""
     
     # Base prompt
-    base_prompt = f"""You are an underwriting assistant analyzing pages {page_numbers} from a document submission.
+    base_prompt = f"""You are an Enterprise Architect assistant analyzing pages {page_numbers} from a document submission.
 The overall document has been classified as: {document_type}
-The insurance type is: {insurance_type}
+The review type is: {insurance_type}
 
 Analysis of previous pages (if any):
 ```json
@@ -45,39 +45,40 @@ Analysis of previous pages (if any):
 
 **Your Task:**
 1. For each new page image provided in this batch, perform two tasks:
-    a. **Classify the page**: Identify a specific sub-document type for the page (e.g., "Applicant Information", "Medical History", "Attending Physician Statement", "Lab Results", "Prescription History").
-    b. **Extract all data**: Extract all key-value pairs of information from the page.
-2. **Structure your output**: Group the extracted data for each page under its classified sub-document type.
-3. **Maintain Consistency**: If a page's type matches a key from the "Analysis of previous pages", you will group it with those pages. If it's a new type, you will create a new key.
+    a. **Classify the page**: Identify a specific architecture document component type for the page (e.g., "Solution Overview", "Current State Architecture", "Target State Architecture", "Data Flow Diagram", "Security Controls", "Infrastructure Topology", "Integration Details").
+    b. **Extract all data**: Extract all key-value pairs, structured text fields, component labels, or configuration parameters from the page.
+2. **Structure your output**: Group the extracted data for each page under its classified architecture component type.
+3. **Maintain Consistency**: If a page's type matches a key from the "Analysis of previous pages", group it with those pages. If it's a new architecture component type, create a new key.
 4. **Return ONLY a JSON object** that contains the analysis for the **CURRENT BATCH of pages**. Do not repeat the `previous_analysis_json` in your output.
 
 **Important Guidelines:**
-- The keys in your JSON output should be the sub-document types.
+- The keys in your JSON output should be the identified architecture component types.
 - The values should be a list of page objects.
-- Each page object must include a `"page_number"` and all other data you extracted.
-- If a page is blank or contains no extractable information, return an object with just the page number and a note, like `{{"page_number": 1, "status": "No information found"}}`.
+- Each page object must include a `"page_number"` and all extracted data fields.
+- If a page is blank or contains no extractable information, return an object with just the page number and a note, like `{"page_number": 1, "status": "No information found"}`.
 - Do not include any explanations or text outside of the final JSON object.
 
 **Example Output Format:**
 ```json
 {{
-  "Applicant Information": [
-    {{
+  "Current State Architecture": [
+    {
       "page_number": 1,
-      "full_name": "John Doe",
-      "date_of_birth": "1980-01-15",
-      "address": "123 Main St, Anytown, USA"
-    }}
+      "system_name": "CRM Core Platform",
+      "dependencies": ["Billing Service", "IAM Service"],
+      "description": "Baseline architecture showing major system interactions."
+    }
   ],
-  "Medical History": [
-    {{
+  "Security Controls": [
+    {
       "page_number": 2,
-      "condition": "Hypertension",
-      "diagnosed_date": "2015-06-20",
-      "treatment": "Lisinopril"
-    }}
+      "encryption_at_rest": "AES-256",
+      "encryption_in_transit": "TLS 1.2+",
+      "identity_provider": "Azure AD"
+    }
   ]
 }}
+
 ```
 
 Here come the images for pages {page_numbers}:
