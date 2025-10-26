@@ -52,7 +52,7 @@ export function JobsListPage() {
             icon={faList}
             style={{ marginRight: "10px", color: "#3b82f6" }}
           />
-          Underwriting Jobs
+          Architecture Review Jobs
         </h2>
         <div className="header-controls">
           <button onClick={() => navigate("/")} className="nav-button">

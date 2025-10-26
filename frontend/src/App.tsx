@@ -611,7 +611,7 @@ function JobsList() {
           <span className="header-logo">
             <FontAwesomeIcon icon={faShieldAlt} />
           </span>
-          GenAI Underwriting Workbench
+          GenAI EA Workbench
         </h1>
         <div className="header-controls">
           <button onClick={() => navigate('/')} className="nav-button">
