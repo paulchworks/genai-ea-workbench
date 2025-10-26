@@ -37,13 +37,13 @@ ANALYSIS_OUTPUT_SCHEMA = {
     "discrepancies": [
         {"discrepancy_description": "string", "details": "string", "page_references": ["string"]}
     ],
-    "medical_timeline": "string", # Markdown text for UI
-    "property_assessment": "string", # Markdown text for UI
+    "architecture_overview": "string", # Markdown text for UI
+    "integration_and_infrastructure_assessment": "string", # Markdown text for UI
     "final_recommendation": "string", # Markdown text for UI
     "missing_information": [
         {"item_description": "string", "notes": "string"}
     ],
-    "confidence_score": "float" 
+    "confidence_score": "float"
 }
 
 def validate_analysis_data(data, schema):
@@ -130,21 +130,34 @@ def lambda_handler(event, context):
     # --- 3) Construct Analysis Prompt ---
     consolidated = json.dumps(extracted_data, indent=2)
     print(f"[lambda_handler] Building analysis prompt (length {len(consolidated)} chars)")
-    analysis_prompt_text = f"""You are an expert insurance underwriter tasked with analyzing extracted document information.
-        The following data was extracted from an insurance document:
+    analysis_prompt_text = f"""You are an expert enterprise architect tasked with analyzing extracted document information.
+        The following data was extracted from an architecture review document:
         <extracted_data>
         {consolidated}
         </extracted_data>
 
-        Please perform a comprehensive analysis. Your goal is to:
-        1. Provide an 'overall_summary' of the document content and its purpose based on the extracted data.
-        2. Identify key risks in 'identified_risks'. For each risk, include 'risk_description', 'severity' (Low, Medium, or High), and 'page_references' (list of strings, e.g., ["1", "3-5"], use ["N/A"] if not applicable).
-        3. Identify any discrepancies or inconsistencies in 'discrepancies'. For each, include 'discrepancy_description', 'details' (provide specific details of the discrepancy), and 'page_references' (list of strings, e.g., ["2", "10"], use ["N/A"] if not applicable).
-        4. Provide a 'medical_timeline' (string, use Markdown for formatting) if the document is medical-related. If not applicable, provide an empty string or "N/A".
-        5. Provide a 'property_assessment' (string, use Markdown for formatting) if the document is property-related (e.g., commercial property application). If not applicable, provide an empty string or "N/A".
-        6. Formulate a 'final_recommendation' (string, use Markdown for formatting) for the underwriter based on your analysis (e.g., approve, decline with reasons, request more info).
-        7. List any critical missing information in 'missing_information'. For each, include 'item_description' and 'notes'.
-        8. If you can estimate a 'confidence_score' (0.0 to 1.0) for your overall analysis based on the quality and completeness of the provided extracted data, include it. Otherwise, you can omit it or use a default like 0.75.
+        Please perform a comprehensive Enterprise Architecture analysis. Your goal is to:
+
+        1. Provide an 'overall_summary' of the solution, proposal, or design document based on the extracted data — including the business context and architectural intent.
+        2. Identify key risks in 'identified_risks'. For each risk, include:
+        - 'risk_description' (clear and concise)
+        - 'severity' (Low, Medium, or High)
+        - 'page_references' (list of strings, e.g., ["1", "3-5"], use ["N/A"] if not applicable)
+        3. Identify any discrepancies or inconsistencies in 'discrepancies'. For each, include:
+        - 'discrepancy_description' (what is misaligned, unclear, or contradictory)
+        - 'details' (explain why this is a discrepancy and its architectural impact)
+        - 'page_references' (list of strings, use ["N/A"] if not applicable)
+        4. Provide an 'architecture_overview' (string, use Markdown for formatting). This should summarize the system architecture, logical components, key integrations, and primary data flows.
+        5. Provide an 'integration_and_infrastructure_assessment' (string, use Markdown for formatting). This should evaluate integration patterns, cloud architecture, networking, deployment topology, resilience, observability, and security considerations.
+        6. Formulate a 'final_recommendation' (string, use Markdown for formatting) for the Architecture Review Board. For example:
+        - approve as submitted
+        - approve with minor conditions
+        - require revisions before resubmission
+        - decline with rationale
+        7. List any critical missing information in 'missing_information'. For each missing item, include:
+        - 'item_description'
+        - 'notes' (why it matters, or what is needed to resolve)
+        8. If you can estimate a 'confidence_score' (0.0 to 1.0) for your overall analysis based on the completeness and clarity of the provided data, include it. Otherwise, you may use a reasonable default such as 0.75.
         
         Structure your response as a single JSON object matching the following schema precisely. Do not include any explanations or text outside this JSON structure:
         {json.dumps(ANALYSIS_OUTPUT_SCHEMA, indent=2)}
