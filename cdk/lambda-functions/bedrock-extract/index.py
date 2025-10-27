@@ -55,27 +55,27 @@ Analysis of previous pages (if any):
 - The keys in your JSON output should be the identified architecture component types.
 - The values should be a list of page objects.
 - Each page object must include a `"page_number"` and all extracted data fields.
-- If a page is blank or contains no extractable information, return an object with just the page number and a note, like `{"page_number": 1, "status": "No information found"}`.
+- If a page is blank or contains no extractable information, return an object with just the page number and a note, like `{{"page_number": 1, "status": "No information found"}}`.
 - Do not include any explanations or text outside of the final JSON object.
 
 **Example Output Format:**
 ```json
 {{
   "Current State Architecture": [
-    {
+    {{
       "page_number": 1,
       "system_name": "CRM Core Platform",
       "dependencies": ["Billing Service", "IAM Service"],
       "description": "Baseline architecture showing major system interactions."
-    }
+    }}
   ],
   "Security Controls": [
-    {
+    {{
       "page_number": 2,
       "encryption_at_rest": "AES-256",
       "encryption_in_transit": "TLS 1.2+",
       "identity_provider": "Azure AD"
-    }
+    }}
   ]
 }}
 

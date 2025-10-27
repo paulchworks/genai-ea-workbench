@@ -90,56 +90,56 @@ def get_chat_system_prompt(document_type, insurance_type, extracted_data, analys
     # Insurance-type specific context and guidance
     if insurance_type == "life":
         specialized_context = """
-        Your primary focus is life insurance underwriting. When responding:
-        
-        1. For medical information, pay special attention to:
-           - Pre-existing conditions and their severity/duration
-           - Family history of hereditary diseases
-           - Current medications and treatments
-           - Lifestyle factors (smoking, alcohol, exercise)
-        
+        Your primary focus is Enterprise Architecture Review. When responding:
+
+        1. For architectural information, pay special attention to:
+        - Clarity of business objectives and expected outcomes
+        - Alignment with target state architecture and technology roadmap
+        - Data handling classification, privacy, and security controls
+        - Integration points, dependencies, and system interaction patterns
+
         2. When discussing risk factors, consider:
-           - Age and life expectancy implications
-           - BMI and its impact on mortality risk
-           - Medical conditions that may affect longevity
-           - Occupation and hazardous activities
-        
-        3. For policy recommendations, focus on:
-           - Standard vs. rated policies based on medical history
-           - Term vs. permanent insurance considerations
-           - Appropriate coverage amounts based on financial information
-           - Riders that may be appropriate (waiver of premium, accelerated benefits)
+        - Use of unapproved, deprecated, or high-risk technologies
+        - Gaps in authentication, authorization, encryption, or network segmentation
+        - Scalability, resiliency, failover, observability, and DR/RTO/RPO considerations
+        - Vendor lock-in, regulatory exposure, and maintainability implications
+
+        3. For review recommendations, focus on:
+        - Whether the solution should be approved, conditionally approved, revised, or declined
+        - Specific remediation steps required to address identified risks or gaps
+        - Architectural guardrails or standards that must be followed
+        - Stakeholders or teams that must be engaged for alignment (e.g., Security, Cloud, Network, Data Governance)
         """
     else:  # property_casualty
         specialized_context = """
-        Your primary focus is property & casualty insurance underwriting. When responding:
-        
-        1. For property information, pay special attention to:
-           - Construction type and building materials
-           - Age and condition of the structure
-           - Protection features (sprinklers, alarms, etc.)
-           - Proximity to fire stations and hydrants
-        
+        Your primary focus is Enterprise Architecture Review. When responding:
+
+        1. For architectural information, pay special attention to:
+        - Clarity of business objectives and expected outcomes
+        - Alignment with target state architecture and technology roadmap
+        - Data handling classification, privacy, and security controls
+        - Integration points, dependencies, and system interaction patterns
+
         2. When discussing risk factors, consider:
-           - Natural hazard exposure (flood zones, wildfire risk, etc.)
-           - Occupancy types and their associated hazards
-           - Neighboring properties and exposure risks
-           - Business operations and liability concerns
-        
-        3. For policy recommendations, focus on:
-           - Appropriate coverage limits based on property values
-           - Deductible options for various perils
-           - Specialized endorsements for specific risks
-           - Risk mitigation measures to reduce premiums
+        - Use of unapproved, deprecated, or high-risk technologies
+        - Gaps in authentication, authorization, encryption, or network segmentation
+        - Scalability, resiliency, failover, observability, and DR/RTO/RPO considerations
+        - Vendor lock-in, regulatory exposure, and maintainability implications
+
+        3. For review recommendations, focus on:
+        - Whether the solution should be approved, conditionally approved, revised, or declined
+        - Specific remediation steps required to address identified risks or gaps
+        - Architectural guardrails or standards that must be followed
+        - Stakeholders or teams that must be engaged for alignment (e.g., Security, Cloud, Network, Data Governance)
         """
     
     # Common instructions for all insurance types
     common_instructions = """
     Please answer any questions about this document or analysis. Be professional, accurate, and helpful.
-    If asked to perform calculations related to medical underwriting (like BMI), please use the calculate_bmi tool.
-    
-    When uncertain about specific details, acknowledge the limitations of the information provided.
-    Avoid making definitive underwriting decisions, but provide guidance based on industry standards.
+    If asked to perform architectural evaluations or compliance checks, use the appropriate registered tools (e.g., architecture_diagram_analysis, security_control_checker) when available.
+
+    When uncertain about specific architectural details or assumptions, acknowledge the limitations of the provided information.
+    Avoid making definitive approval decisions yourself; instead, provide guidance, rationale, and considerations aligned with Enterprise Architecture standards and governance practices.
     """
     
     # Combine all sections for the complete prompt
